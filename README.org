@@ -14,6 +14,6 @@
 
 ** Author and license
 
-   Copyright (c) 2024, Simon Dobson mailto:simon.dobson@st-andrews./ac.uk
+   Copyright (c) 2024, Simon Dobson mailto:simon.dobson@st-andrews.ac.uk
 
-   Licensed under the [[<https://www.gnu.org/licenses/gpl-3.0.en.html][GNU General Public Licence v3]].
+   Licensed under the [[https://www.gnu.org/licenses/gpl-3.0.en.html][GNU General Public Licence v3]].
