@@ -2,7 +2,7 @@
 #
 # Copyright (C) 2024 Simon Dobson
 #
-# This file is part of sensor-target-counting, an experiment in
+# This file is part of target-counting, an experiment in
 # target counting and higher-order sensor data analytics
 #
 # This is free software: you can redistribute it and/or modify
@@ -22,9 +22,14 @@
 
 # Notebooks
 NOTEBOOKS =  \
+	introduction.ipynb
 
 # Source code
 SOURCES = \
+	targetcounting/__init__.py \
+	targetcounting/.py.typed \
+	targetcounting/sensor.py \
+	targetcounting/_drawing.py \
 
 SOURCES_TESTS = \
 
@@ -82,17 +87,9 @@ help:
 live: env
 	$(ACTIVATE) && $(RUN_SERVER)
 
-# Run tests for all versions of Python we're interested in
-test: env Makefile
-	$(ACTIVATE) && $(RUN_TESTS)
-
-# Build video scenes
-.PHONY: video
-video: $(VIDEO)
-
 # Build a development venv
 .PHONY: env
-env: $(VENV) $(DIAGRAMS_DIR) $(DATASETS_DIR) $(ASSETS_DIR)
+env: $(VENV)
 
 $(VENV):
 	$(VIRTUALENV) $(VENV)
@@ -100,11 +97,11 @@ $(VENV):
 	$(ACTIVATE) && $(PIP) install -r $(REQUIREMENTS)
 	$(ACTIVATE) && $(PIP) install -r $(DEV_REQUIREMENTS)
 
+
 # Clean up the build
 clean:
 
-# Clean up everything, including the venv and the datasets (which are *very* expensive
-# to re-download)
+# Clean up everything, including the venv (which is expensive to rebuild)
 reallyclean: clean
 	$(RM) $(VENV)
 
