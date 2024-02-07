@@ -23,8 +23,9 @@ var/
 pip-log.txt
 pip-delete-this-directory.txt
 
-# IPython Notebook
+# Jupyter Notebook
 .ipynb_checkpoints
+.virtual_documents/
 
 # pyenv
 .python-version
