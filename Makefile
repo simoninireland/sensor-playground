@@ -22,17 +22,22 @@
 
 # Notebooks
 NOTEBOOKS =  \
-	introduction.ipynb
+	introduction.ipynb \
+	euler.ipynb
 
 # Source code
 SOURCES = \
 	targetcounting/__init__.py \
-	targetcounting/.py.typed \
+	targetcounting/py.typed \
+	targetcounting/utils.py \
 	targetcounting/sensor.py \
-	targetcounting/_drawing.py \
+	targetcounting/drawing.py \
+	targetcounting/euler.py
 
 SOURCES_TESTS = \
-
+	test/__init__.py \
+	test/test_utils.py \
+	test/test_euler.py
 TESTSUITE = test
 
 

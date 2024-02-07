@@ -20,7 +20,7 @@
 
 import numpy
 from numpy.linalg import norm
-from typing import List, Union, Iterable, cast, override
+from typing import List, Union, Any, Iterable, cast
 
 
 # ---------- Helper types ----------
@@ -33,10 +33,19 @@ Position = Union[List[float], numpy.ndarray]
 class Sensor:
     '''A sensor.
 
-    :param p: the position of the sensor'''
+    :param p: the position of the sensor
+    :param id: the sensor's identifier (defaults to a unique number)
+    '''
 
-    def __init__(self, p: Position):
-        self._position = self._vectorify(p)
+    UNIQUE = 0   #: Source if unique sensor ids.
+
+
+    def __init__(self, p: Position, id: Any = None):
+        self._position = p
+        if id is None:
+            id = Sensor.UNIQUE
+            Sensor.UNIQUE += 1
+        self._id = id
 
 
     # ---------- Helper methods ----------
@@ -44,16 +53,21 @@ class Sensor:
     def _vectorify(self, p: Position) -> numpy.ndarray:
         '''Ensure p is a numpy vector.
 
-        :param p: the vector, as a vectore or list.
+        :param p: the vector, as a vector or list.
         :returns: the vector'''
         if type(p) is list:
             return numpy.array(p)
         return cast(numpy.ndarray, p)
 
+
     # ---------- Access ----------
 
     def position(self) -> Position:
         return self._position
+
+
+    def id(self) -> Any:
+        return self._id
 
 
     # ---------- Sensing ----------
@@ -75,6 +89,18 @@ class Sensor:
         :param q: the target position
         :returns: True if the target is detected'''
         return self.canDetectTarget(q)
+
+
+    def isOverlappingWith(self, s: 'Sensor') -> bool:
+        '''Test whether this sensor's detections overlap with another's.
+
+        This entirely depends on calculations in sub-classes. Different
+        sub-clasess may or may not be able to compute overlapping with
+        each other.
+
+        :param s: the other sensor
+        :returns True if the two sensors overlap'''
+        raise NotImplementedError('isOverlappingWith')
 
 
     def detects(self, ts: Iterable[Position]) -> Iterable[Position]:
@@ -104,8 +130,8 @@ class SimpleSensor(Sensor):
     :param, p: the sensor position
     :param r: the sensing field radius'''
 
-    def __init__(self, p: Position, r: float):
-        super().__init__(p)
+    def __init__(self, p: Position, r: float, id: Any = None):
+        super().__init__(p, id)
         self._detectionRadius = r
 
 
@@ -113,7 +139,20 @@ class SimpleSensor(Sensor):
         return self._detectionRadius
 
 
-    @override
+    def isOverlappingWith(self, s: Sensor) -> bool:
+        '''Compute overlaps with another :class:`SimpleSensor`.
+
+        :param s: the other sensor
+        :returns: True oif the sensors overlap'''
+        if type(s) is SimpleSensor:
+            # check whether the sensor fields overlap
+            d = float(norm(self._vectorify(self.position()) - self._vectorify(s.position())))
+            return d < self.detectionRadius() + s.detectionRadius()
+        else:
+            # if the other sensor is not a SimpleSensor, fail
+            raise ValueError(f'Can\'t compute overlap with an instance of {type(s)}')
+
+
     def canDetectTarget(self, q: Position) -> bool:
         '''Detects a target if it is (strictly) within the sensing field radius.
 
