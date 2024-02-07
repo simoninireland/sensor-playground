@@ -21,30 +21,40 @@
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
 from typing import Iterable
-from targetcounting import Sensor, Position
+from targetcounting import SimpleSensor, Position
 
 
-def drawField(ss: Iterable[Sensor], ts: Iterable[Position] = None,
+def drawField(ss: Iterable[SimpleSensor], ts: Iterable[Position] = None,
               ax = None, backgroundColour = '0.95',
+              subfieldXY = None, subfieldWH = None,
+              showSensors = True,
               sensorColour = 'r', sensorMarker = '.', sensorSize = 2,
+              showFields = True,
               fieldColour = 'g', fieldAlpha = 0.2,
+              showTargets = True,
               targetColour = 'b', targetMarker = 'x', targetSize = 2,
               showCount = False,
               targetCountColour = 'b', targetCountFontSize = 5):
-    '''Draw the sensor field containing the given sensors.
+    '''Draw the sensor field containing the given simple sensors.
 
-    The sensors are drawn with the sensing fields. The axes
-    are configured to remove ticks.
+    It is possible to set a lot of the colours and other attributes
+    using further keyword arguments. In particular, it is possible to
+    zoom-in on a specific part of the field.
 
     :param ss: the sensors
     :param ts: the targets (default None)
     :param ax: the axes to draw into (default the current main axes)
     :param backgroundColour: the background colour for the field (default '0.95')
+    :param subfieldXY: the bottom-left corner of the sub-field to draw (defaults to all)
+    :param subfieldWH: the width and heigh of the sub-field to draw (defaults to all)
+    :param showSensors: show the senros positions (default True)
     :param sensorColour: colour to mark the sensor position (default 'r')
     :param sensorMarker: the sensor marker (default '.')
     :param sensorSize: size of the sensor marker (default 2)
+    :param showFields: show the sensor fields (default True)
     :param fieldColour: colour of the sensor field (default 'g')
     :param fieldAlpha: transparency for the field (default 0.2)
+    :param showTargets: show the targets (default True)
     :param targetColour: colour to mark the sensor position (default 'b')
     :param targetMarker: the sensor marker (default 'x')
     :param targetSize: size of the sensor marker (default 2)
@@ -53,42 +63,58 @@ def drawField(ss: Iterable[Sensor], ts: Iterable[Position] = None,
     :param targetCountFontSize: font size for the count, if shown (default 5)
     '''
 
-    # full in defaults
+    # fill in defaults
     if ax is None:
         ax = plt.gca()
+    if subfieldXY is None:
+        subfieldXY = [0.0, 0.0]
+    if subfieldWH is None:
+        subfieldWH = [1.0 - subfieldXY[0], 1.0 - subfieldXY[1]]
 
     # sensors
-    for s in ss:
-        p = s.position()
+    if showSensors:
+        for s in ss:
+            p = s.position()
 
-        # field
-        c = Circle(p, radius=s.detectionRadius(),
-                  color=fieldColour, alpha=fieldAlpha)
-        ax.add_patch(c)
+            # field
+            if showFields:
+                c = Circle(p, radius=s.detectionRadius(),
+                           color=fieldColour, alpha=fieldAlpha)
+                ax.add_patch(c)
 
-        # sensor position
-        ax.plot(p[0], p[1],
-               color=sensorColour, marker=sensorMarker, markersize=sensorSize)
+            # sensor position
+            ax.plot(p[0], p[1],
+                    color=sensorColour, marker=sensorMarker, markersize=sensorSize)
 
     # targets
-    if ts is not None:
+    if showTargets and ts is not None:
         # positions
         for t in ts:
             plt.plot([t[0]], [t[1]],
                     color=targetColour, marker=targetMarker, markersize=targetSize)
 
-        # counts
-        if showCount:
-            for s in ss:
-                c = s.counts(ts)
-                if c > 0:
-                    ax.annotate(f'{c}', s.position(),
-                                [0.5, -1], textcoords='offset fontsize',
-                                fontsize=targetCountFontSize, color=targetCountColour)
+    # counts
+    if showCount and ts is not None:
+        for s in ss:
+            c = s.counts(ts)
+            if c > 0:
+                ax.annotate(f'{c}', s.position(),
+                            [0.5, -1], textcoords='offset fontsize',
+                            fontsize=targetCountFontSize, color=targetCountColour)
 
     # configure the axes
-    ax.set_xlim([0.0, 1.0])
-    ax.set_ylim([0.0, 1.0])
-    ax.set_xticks([])
-    ax.set_yticks([])
+    ax.set_xlim(subfieldXY[0], subfieldXY[0] + subfieldWH[0])
+    ax.set_ylim(subfieldXY[1], subfieldXY[1] + subfieldWH[1])
+
+
+    if subfieldXY == [0.0, 0.0] and subfieldWH == [1.0, 1.0]:
+        # no ticks for the full field
+        ax.set_xticks([])
+        ax.set_yticks([])
+    else:
+        # show extent for a subfield
+        ax.set_xticks([subfieldXY[0], subfieldXY[0] + subfieldWH[0]])
+        ax.set_yticks([subfieldXY[1], subfieldXY[1] + subfieldWH[1]])
+
+    # set the background colour
     ax.set_facecolor(backgroundColour)
