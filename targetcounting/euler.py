@@ -21,7 +21,7 @@
 from itertools import combinations
 from typing import Iterable, Final
 from numpy.linalg import norm
-from targetcounting import Sensor, zipboth
+from targetcounting import Sensor, Position, zipboth
 from simplicial import SimplicialComplex, EulerIntegrator
 
 
@@ -108,9 +108,10 @@ class EulerEstimator:
             self._c[s.id()][EulerEstimator.COUNT] = c
 
 
-    def estimate(self, ss: Iterable[Sensor], cs: Iterable[int]) -> int:
+    def estimateFromCounts(self, ss: Iterable[Sensor], cs: Iterable[int]) -> int:
         '''Estimate the total target count from the counts observed
-        at all the sensors.
+        at all the sensors. Any senbsors not given a count are assumed
+        to count zero.
 
         :param ss: the sensors
         :param cs: the counts
@@ -124,3 +125,24 @@ class EulerEstimator:
         count = integrator.integrate(self._c)
 
         return count
+
+
+    def estimateFromTargets(self, ts: Iterable[Position]) -> int:
+        '''Estimate the count of a collection of targets.
+
+        The estimator computes the counts at each sensor from
+        the target positions.
+
+        One simple error measure is the fraction by which the estimate
+        differs from the (known) actual number of targets.
+
+        :param ts: the targets
+        :returns: the estimated target count'''
+        counts = []
+
+        # compute the counts at each sensor
+        for s in self._sensors:
+            counts.append(s.counts(ts))
+
+        # compute the estimate
+        return self.estimateFromCounts(self._sensors, counts)
