@@ -29,6 +29,8 @@ def drawField(ss: Iterable[SimpleSensor], ts: Iterable[Position] = None,
               subfieldXY = None, subfieldWH = None,
               showSensors = True,
               sensorColour = 'r', sensorMarker = '.', sensorSize = 2,
+              showSensorLabels = False,
+              sensorLabelColour = 'b', sensorLabelFontSize = 5,
               showFields = True,
               fieldColour = 'g', fieldAlpha = 0.2,
               showTargets = True,
@@ -47,10 +49,13 @@ def drawField(ss: Iterable[SimpleSensor], ts: Iterable[Position] = None,
     :param backgroundColour: the background colour for the field (default '0.95')
     :param subfieldXY: the bottom-left corner of the sub-field to draw (defaults to all)
     :param subfieldWH: the width and heigh of the sub-field to draw (defaults to all)
-    :param showSensors: show the senros positions (default True)
+    :param showSensors: show the sensors positions (default True)
     :param sensorColour: colour to mark the sensor position (default 'r')
     :param sensorMarker: the sensor marker (default '.')
     :param sensorSize: size of the sensor marker (default 2)
+    :param showSensorLabels: show the sensor simplex names (default False)
+    :param sensorLabelColour: colour for the label if shown (default 'b')
+    :param sensorLabelFontSize: font size for the label if shown (default 5)
     :param showFields: show the sensor fields (default True)
     :param fieldColour: colour of the sensor field (default 'g')
     :param fieldAlpha: transparency for the field (default 0.2)
@@ -60,7 +65,7 @@ def drawField(ss: Iterable[SimpleSensor], ts: Iterable[Position] = None,
     :param targetSize: size of the sensor marker (default 2)
     :param showCount: show the non-zero target count at each sensor (default False)
     :param targetCountColour: colour for the count if shown (default 'b')
-    :param targetCountFontSize: font size for the count, if shown (default 5)
+    :param targetCountFontSize: font size for the count if shown (default 5)
     '''
 
     # fill in defaults
@@ -85,6 +90,11 @@ def drawField(ss: Iterable[SimpleSensor], ts: Iterable[Position] = None,
             # sensor position
             ax.plot(p[0], p[1],
                     color=sensorColour, marker=sensorMarker, markersize=sensorSize)
+
+            # label
+            ax.annotate(f'{s.id()}', s.position(),
+                        [0.5, -1], textcoords='offset fontsize',
+                        fontsize=sensorLabelFontSize, color=sensorLabelColour)
 
     # targets
     if showTargets and ts is not None:
