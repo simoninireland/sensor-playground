@@ -1,8 +1,4 @@
-wheel
-tox
-coverage
-pylint
-rope
+pytest
 sphinx
 sphinx_rtd_theme
 sphinx-autodoc-typehints
