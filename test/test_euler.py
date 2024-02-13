@@ -20,7 +20,7 @@
 
 import unittest
 from simplicial import SimplicialComplex
-from targetcounting import *
+from sensorplayground import *
 
 
 class TestEuler(unittest.TestCase):

@@ -19,7 +19,7 @@
 # along with this software. If not, see <http://www.gnu.org/licenses/gpl.html>.
 
 import unittest
-from targetcounting import *
+from sensorplayground import *
 
 
 class TestZipBoth(unittest.TestCase):
@@ -38,7 +38,7 @@ class TestZipBoth(unittest.TestCase):
         self.assertCountEqual(pairs, [(1, 4), (2, 5), (3, 6)])
 
 
-    def testUnqualFirst(self):
+    def testUnequalFirst(self):
         '''Test we catch the first iterator finishing before the second.'''
         with self.assertRaises(ValueError):
             for _ in zipboth([1, 2], [4, 5, 6]):
