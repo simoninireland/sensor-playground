@@ -33,14 +33,14 @@ Position = Union[List[float], numpy.ndarray]
 class Sensor:
     '''A sensor.
 
-    :param p: the position of the sensor
+    :param p: (optional) the position of the sensor
     :param id: the sensor's identifier (defaults to a unique number)
     '''
 
     UNIQUE = 0   #: Source if unique sensor ids.
 
 
-    def __init__(self, p: Position, id: Any = None):
+    def __init__(self, p: Position = None, id: Any = None):
         self._position = p
         if id is None:
             id = Sensor.UNIQUE
@@ -66,6 +66,20 @@ class Sensor:
         return self._position
 
 
+    def setPosition(self, p: Position):
+        self._position = p
+
+
+    def isPositioned(self, fatal = False)-> bool:
+        if self._position is not None:
+            return True
+        else:
+            if fatal:
+                raise ValueError(f'Sensor {self.id()} is not positioned')
+            else:
+                return False
+
+
     def id(self) -> Any:
         return self._id
 
@@ -73,7 +87,7 @@ class Sensor:
     # ---------- Sensing ----------
 
     def canDetectTarget(self, q: Position) -> bool:
-        '''Test whether the sensoir can detect a target at posiiton q.
+        '''Test whether the sensor can detect a target at posiiton q.
 
         :param q: the position of the target
         :return: True if the target is detectable by this sensor'''
@@ -127,10 +141,10 @@ class SimpleSensor(Sensor):
     For topological reasons the sensor field is an open region, and
     so includes all points at a distance strictly less than the radius.
 
-    :param, p: the sensor position
-    :param r: the sensing field radius'''
+    :param p: (optional) the sensor position
+    :param r: the sensing field radius (defaults to 1.0)'''
 
-    def __init__(self, p: Position, r: float, id: Any = None):
+    def __init__(self, p: Position = None, r: float = 1.0, id: Any = None):
         super().__init__(p, id)
         self._detectionRadius = r
 
@@ -143,8 +157,11 @@ class SimpleSensor(Sensor):
         '''Compute overlaps with another :class:`SimpleSensor`.
 
         :param s: the other sensor
-        :returns: True oif the sensors overlap'''
+        :returns: True if the sensors overlap'''
         if type(s) is SimpleSensor:
+            # check we know both positions
+            self.isPositioned(fatal=True) and s.isPositioned(fatal=True)
+
             # check whether the sensor fields overlap
             d = float(norm(self._vectorify(self.position()) - self._vectorify(s.position())))
             return d < self.detectionRadius() + s.detectionRadius()
@@ -158,5 +175,11 @@ class SimpleSensor(Sensor):
 
         :param q: the position of the target
         :return: True if the target is detectable by this sensor'''
+
+        # check we know the positions
+        self.isPositioned(fatal=True)
+
+        # distance is simply the 2-norm of the difference
         d = float(norm(self._vectorify(self.position()) - q))
+
         return d < self.detectionRadius()
