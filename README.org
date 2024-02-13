@@ -1,15 +1,15 @@
-* target-counting: An experiment in target counting and higher-order sensor data analytics
+* sensor-playground: An experimental framework forn target counting and higher-order sensor data analytics
 
-  This repo contains code intended to explore /target counting/, a
-  well-known "challenge problem" in sensor networking where a
-  collection of sensors that can count, but not identify, targets in a
-  local area co-operate to determine how many targets are actually
-  present. The problem is that the sensors may overlap, or have gaps
-  in coverage, so the answer is always an estimate and we ideally also
-  need to determine how good an estimate it is. This is abstraction of
-  several real-world problems, for example estimating wildlife
-  abundance or determining the impact of faults in air traffic and
-  other surveillance configurations.
+  This repo contains code intended to explore /target counting and
+  tracking/, a well-known "challenge problem" in sensor networking
+  where a collection of sensors that can count, but not identify,
+  targets in a local area co-operate to determine how many targets are
+  actually present. The problem is that the sensors may overlap, or
+  have gaps in coverage, so the answer is always an estimate and we
+  ideally also need to determine how good an estimate it is. This is
+  abstraction of several real-world problems, for example estimating
+  wildlife abundance or determining the impact of faults in air
+  traffic and other surveillance configurations.
 
 
 ** Author and license

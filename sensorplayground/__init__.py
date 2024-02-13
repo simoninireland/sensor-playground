@@ -1,8 +1,8 @@
-# Init file for target counting package
+# Init file for the sensor playground package
 #
 # Copyright (C) 2024 Simon Dobson
 #
-# This file is part of target-counting, an experiment in
+# This file is part of sensor-playground, an experimental framework for
 # target counting and higher-order sensor data analytics
 #
 # This is free software: you can redistribute it and/or modify

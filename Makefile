@@ -1,8 +1,8 @@
-# Makefile for target counting experiment
+# Makefile for sensor playground experiment
 #
 # Copyright (C) 2024 Simon Dobson
 #
-# This file is part of target-counting, an experiment in
+# This file is part of sensor-playground, an experimental framework for
 # target counting and higher-order sensor data analytics
 #
 # This is free software: you can redistribute it and/or modify
@@ -27,12 +27,12 @@ NOTEBOOKS =  \
 
 # Source code
 SOURCES = \
-	targetcounting/__init__.py \
-	targetcounting/py.typed \
-	targetcounting/utils.py \
-	targetcounting/sensor.py \
-	targetcounting/drawing.py \
-	targetcounting/euler.py
+	sensorplayground/__init__.py \
+	sensorplayground/py.typed \
+	sensorplayground/utils.py \
+	sensorplayground/sensor.py \
+	sensorplayground/drawing.py \
+	sensorplayground/euler.py
 
 SOURCES_TESTS = \
 	test/__init__.py \

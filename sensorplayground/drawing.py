@@ -2,7 +2,7 @@
 #
 # Copyright (C) 2024 Simon Dobson
 #
-# This file is part of target-counting, an experiment in
+# This file is part of sensor-playground, an experimental framework for
 # target counting and higher-order sensor data analytics
 #
 # This is free software: you can redistribute it and/or modify
@@ -21,7 +21,7 @@
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
 from typing import Iterable
-from targetcounting import SimpleSensor, Position
+from sensorplayground import SimpleSensor, Position
 
 
 def drawField(ss: Iterable[SimpleSensor], ts: Iterable[Position] = None,

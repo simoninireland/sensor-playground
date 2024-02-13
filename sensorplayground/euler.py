@@ -2,7 +2,7 @@
 #
 # Copyright (C) 2024 Simon Dobson
 #
-# This file is part of target-counting, an experiment in
+# This file is part of sensor-playground, an experimental framework for
 # target counting and higher-order sensor data analytics
 #
 # This is free software: you can redistribute it and/or modify
@@ -21,7 +21,7 @@
 from itertools import combinations
 from typing import Iterable, Final
 from numpy.linalg import norm
-from targetcounting import Sensor, Position, zipboth
+from sensorplayground import Sensor, Position, zipboth
 from simplicial import SimplicialComplex, EulerIntegrator
 
 
