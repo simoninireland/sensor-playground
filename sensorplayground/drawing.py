@@ -29,10 +29,11 @@ def drawField(ss: Iterable[SimpleSensor], ts: Iterable[Position] = None,
               subfieldXY = None, subfieldWH = None,
               showSensors = True,
               sensorColour = 'r', sensorMarker = '.', sensorSize = 2,
+              sensorFilled = True, sensorFillColour =  'r',
               showSensorLabels = False,
               sensorLabelColour = 'b', sensorLabelFontSize = 5,
-              showFields = True,
-              fieldColour = 'g', fieldAlpha = 0.2,
+              showSensorFields = True,
+              sensorFieldColour = 'g', sensorFieldAlpha = 0.2,
               showTargets = True,
               targetColour = 'b', targetMarker = 'x', targetSize = 2,
               showCount = False,
@@ -41,24 +42,28 @@ def drawField(ss: Iterable[SimpleSensor], ts: Iterable[Position] = None,
 
     It is possible to set a lot of the colours and other attributes
     using further keyword arguments. In particular, it is possible to
-    zoom-in on a specific part of the field.
+    zoom-in on a specific part of the field. Sensors can be filled with
+    a constant colour, a colour determined per-sensor (in a dict keyed
+    by sensor id), or left open.
 
     :param ss: the sensors
     :param ts: the targets (default None)
     :param ax: the axes to draw into (default the current main axes)
     :param backgroundColour: the background colour for the field (default '0.95')
-    :param subfieldXY: the bottom-left corner of the sub-field to draw (defaults to all)
-    :param subfieldWH: the width and heigh of the sub-field to draw (defaults to all)
+    :param subfieldXY: the bottom-left corner of the sub-field to draw (default all)
+    :param subfieldWH: the width and heigh of the sub-field to draw (default all)
     :param showSensors: show the sensors positions (default True)
     :param sensorColour: colour to mark the sensor position (default 'r')
     :param sensorMarker: the sensor marker (default '.')
     :param sensorSize: size of the sensor marker (default 2)
+    :param sensorFilled: whether the marker is filled (defauil True)
+    :param sensorFillColour: colour to fill the sensor (default 'r')
     :param showSensorLabels: show the sensor simplex names (default False)
     :param sensorLabelColour: colour for the label if shown (default 'b')
     :param sensorLabelFontSize: font size for the label if shown (default 5)
-    :param showFields: show the sensor fields (default True)
-    :param fieldColour: colour of the sensor field (default 'g')
-    :param fieldAlpha: transparency for the field (default 0.2)
+    :param showSensorFields: show the sensor fields (default True)
+    :param sensorFieldColour: colour of the sensor field (default 'g')
+    :param sensorFieldAlpha: transparency for the field (default 0.2)
     :param showTargets: show the targets (default True)
     :param targetColour: colour to mark the sensor position (default 'b')
     :param targetMarker: the sensor marker (default 'x')
@@ -76,31 +81,50 @@ def drawField(ss: Iterable[SimpleSensor], ts: Iterable[Position] = None,
     if subfieldWH is None:
         subfieldWH = [1.0 - subfieldXY[0], 1.0 - subfieldXY[1]]
 
-    # sensors
+    # sensors, fields, and labels
     if showSensors:
         for s in ss:
             p = s.position()
 
-            # field
-            if showFields:
+            # mark sensor field
+            if showSensorFields:
                 c = Circle(p, radius=s.detectionRadius(),
-                           color=fieldColour, alpha=fieldAlpha)
+                           color=sensorFieldColour, alpha=sensorFieldAlpha)
                 ax.add_patch(c)
 
-            # sensor position
-            ax.plot(p[0], p[1],
-                    color=sensorColour, marker=sensorMarker, markersize=sensorSize)
+            # determine sensor marker colour
+            if sensorFilled:
+                if sensorFillColour is None:
+                    # default colour os red
+                    col = 'r'
+                elif type(sensorFillColour) is dict:
+                    # extract colour from the dict, defaults to unfilled
+                    col = sensorFillColour.get(s.id(), 'None')
+                    if col is None:
+                        col = 'None'   # matplotlib uses a string for unfilled
+                else:
+                    # use the literal colour provided
+                    col = sensorFillColour
+            else:
+                # leave unfilled
+                col = 'None'
 
-            # label
-            ax.annotate(f'{s.id()}', s.position(),
-                        [0.5, -1], textcoords='offset fontsize',
-                        fontsize=sensorLabelFontSize, color=sensorLabelColour)
+            # mark sensor position
+            ax.plot(p[0], p[1],
+                    color=sensorColour, marker=sensorMarker, markersize=sensorSize,
+                    markerfacecolor=col)
+
+            # add sensor label
+            if showSensorLabels:
+                ax.annotate(f'{s.id()}', s.position(),
+                            [1.1 * sensorSize, -1.1 * sensorSize], textcoords='offset pixels',
+                            fontsize=sensorLabelFontSize, color=sensorLabelColour)
 
     # targets
     if showTargets and ts is not None:
         # positions
         for t in ts:
-            plt.plot([t[0]], [t[1]],
+            ax.plot([t[0]], [t[1]],
                     color=targetColour, marker=targetMarker, markersize=targetSize)
 
     # counts
