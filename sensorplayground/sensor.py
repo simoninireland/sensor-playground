@@ -84,7 +84,7 @@ class Sensor:
         return self._id
 
 
-    # ---------- Sensing ----------
+    # ---------- Subclass API ----------
 
     def canDetectTarget(self, q: Position) -> bool:
         '''Test whether the sensor can detect a target at posiiton q.
@@ -92,17 +92,6 @@ class Sensor:
         :param q: the position of the target
         :return: True if the target is detectable by this sensor'''
         raise NotImplementedError('canDetectTarget')
-
-
-    def detectsTarget(self, q: Position) -> bool:
-        '''Test whether a target at position q is detected.
-
-        By default a target marked as detectable by :meth:`canDetectTarget`
-        is detected: overriding this method allows for errors in detection.
-
-        :param q: the target position
-        :returns: True if the target is detected'''
-        return self.canDetectTarget(q)
 
 
     def isOverlappingWith(self, s: 'Sensor') -> bool:
@@ -115,6 +104,20 @@ class Sensor:
         :param s: the other sensor
         :returns True if the two sensors overlap'''
         raise NotImplementedError('isOverlappingWith')
+
+
+    # ---------- Highlevel API ----------
+    # (Constructed from the subclassed operations)
+
+    def detectsTarget(self, q: Position) -> bool:
+        '''Test whether a target at position q is detected.
+
+        By default a target marked as detectable by :meth:`canDetectTarget`
+        is detected: overriding this method allows for errors in detection.
+
+        :param q: the target position
+        :returns: True if the target is detected'''
+        return self.canDetectTarget(q)
 
 
     def detects(self, ts: Iterable[Position]) -> Iterable[Position]:
@@ -180,6 +183,6 @@ class SimpleSensor(Sensor):
         self.isPositioned(fatal=True)
 
         # distance is simply the 2-norm of the difference
-        d = float(norm(self._vectorify(self.position()) - q))
+        d = float(norm(self._vectorify(self.position()) - self._vectorify(q)))
 
         return d < self.detectionRadius()
