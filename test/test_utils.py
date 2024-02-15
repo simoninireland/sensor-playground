@@ -45,7 +45,7 @@ class TestZipBoth(unittest.TestCase):
                 pass
 
 
-    def testUnqualSecond(self):
+    def testUnequalSecond(self):
         '''Test we catch the second iterator finishing before the first.'''
         with self.assertRaises(ValueError):
             for _ in zipboth([1, 2, 3], [4, 5]):
