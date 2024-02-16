@@ -30,6 +30,9 @@ SOURCES = \
 	sensorplayground/__init__.py \
 	sensorplayground/py.typed \
 	sensorplayground/utils.py \
+	sensorplayground/types.py \
+	sensorplayground/modalities.py \
+	sensorplayground/playground.py \
 	sensorplayground/sensor.py \
 	sensorplayground/drawing.py \
 	sensorplayground/euler.py

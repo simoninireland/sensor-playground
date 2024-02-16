@@ -1,4 +1,4 @@
-# Init file for the sensor playground package
+# Helper types
 #
 # Copyright (C) 2024 Simon Dobson
 #
@@ -18,19 +18,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this software. If not, see <http://www.gnu.org/licenses/gpl.html>.
 
-# Utilities
-from .utils import zipboth
-from .types import Position, Direction
+import numpy
+from typing import List, Union
 
-# Sensors
-from .modalities import Modality, Targetting, TargetCount, TargetDistance, TargetDirection
-from .sensor import Sensor, SimpleSensor
 
-# Playgrounds
-from .playground import SensorPlayground
+# Positions in 2- or 3-space
+Position = Union[List[float], numpy.ndarray]
 
-# Analytics
-from .euler import EulerEstimator
 
-# Drawing
-from .drawing import drawField
+# Directions
+Direction = List[float]

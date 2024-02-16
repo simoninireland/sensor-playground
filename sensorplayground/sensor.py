@@ -21,6 +21,7 @@
 import numpy
 from numpy.linalg import norm
 from typing import List, Union, Any, Iterable, cast
+from sensorplayground import TargetCount
 
 
 # ---------- Helper types ----------
@@ -33,15 +34,14 @@ Position = Union[List[float], numpy.ndarray]
 class Sensor:
     '''A sensor.
 
-    :param p: (optional) the position of the sensor
     :param id: the sensor's identifier (defaults to a unique number)
     '''
 
+    # Name generation
     UNIQUE = 0   #: Source if unique sensor ids.
 
 
-    def __init__(self, p: Position = None, id: Any = None):
-        self._position = p
+    def __init__(self, id: Any = None):
         if id is None:
             id = Sensor.UNIQUE
             Sensor.UNIQUE += 1
@@ -50,7 +50,8 @@ class Sensor:
 
     # ---------- Helper methods ----------
 
-    def _vectorify(self, p: Position) -> numpy.ndarray:
+    @staticmethod
+    def vectorPosition(p: Position) -> numpy.ndarray:
         '''Ensure p is a numpy vector.
 
         :param p: the vector, as a vector or list.
@@ -58,6 +59,17 @@ class Sensor:
         if type(p) is list:
             return numpy.array(p)
         return cast(numpy.ndarray, p)
+
+
+    @staticmethod
+    def distanceBetween(p: Position, q: Position) -> float:
+        '''Return the distance between two points. The points must
+        have the same dimensions.
+
+        :param p: one point
+        :param q: the other point
+        :returns: the distance'''
+        return float(norm(Sensor.vectorPosition(p) - Sensor.vectorPosition(q)))
 
 
     # ---------- Access ----------
@@ -84,71 +96,21 @@ class Sensor:
         return self._id
 
 
-    # ---------- Subclass API ----------
-
-    def canDetectTarget(self, q: Position) -> bool:
-        '''Test whether the sensor can detect a target at posiiton q.
-
-        :param q: the position of the target
-        :return: True if the target is detectable by this sensor'''
-        raise NotImplementedError('canDetectTarget')
-
-
-    def isOverlappingWith(self, s: 'Sensor') -> bool:
-        '''Test whether this sensor's detections overlap with another's.
-
-        This entirely depends on calculations in sub-classes. Different
-        sub-clasess may or may not be able to compute overlapping with
-        each other.
-
-        :param s: the other sensor
-        :returns True if the two sensors overlap'''
-        raise NotImplementedError('isOverlappingWith')
-
-
-    # ---------- Highlevel API ----------
-    # (Constructed from the subclassed operations)
-
-    def detectsTarget(self, q: Position) -> bool:
-        '''Test whether a target at position q is detected.
-
-        By default a target marked as detectable by :meth:`canDetectTarget`
-        is detected: overriding this method allows for errors in detection.
-
-        :param q: the target position
-        :returns: True if the target is detected'''
-        return self.canDetectTarget(q)
-
-
-    def detects(self, ts: Iterable[Position]) -> Iterable[Position]:
-        '''Return the targets in ts that this sensor detects.
-        :param ts: the target positions
-        :returns: the count'''
-        return [t for t in ts if self.detectsTarget(t)]
-
-
-    def counts(self, ts: Iterable[Position]) -> int:
-        '''Return the number of targets in ts that this sensor counts.
-
-        :param ts: the target positions
-        :returns: the count'''
-        return len(list(self.detects(ts)))
-
-
 # ---------- Sensors with fixed radii fields ----------
 
-class SimpleSensor(Sensor):
+class SimpleSensor(Sensor, TargetCount):
     '''A sensor with a circular or spherical sensing field defined
-    by its radius.
+    by its radius that detects targets within this field.
 
     For topological reasons the sensor field is an open region, and
     so includes all points at a distance strictly less than the radius.
 
-    :param p: (optional) the sensor position
-    :param r: the sensing field radius (defaults to 1.0)'''
+    :param r: the sensing field radius (defaults to 1.0)
+    :param id: (optional) sensor identifier'''
 
-    def __init__(self, p: Position = None, r: float = 1.0, id: Any = None):
-        super().__init__(p, id)
+
+    def __init__(self, r: float = 1.0, id: Any = None):
+        super().__init__(id)
         self._detectionRadius = r
 
 
@@ -166,7 +128,7 @@ class SimpleSensor(Sensor):
             self.isPositioned(fatal=True) and s.isPositioned(fatal=True)
 
             # check whether the sensor fields overlap
-            d = float(norm(self._vectorify(self.position()) - self._vectorify(s.position())))
+            d = Sensor.distanceBetween(self.position(), s.position())
             return d < self.detectionRadius() + s.detectionRadius()
         else:
             # if the other sensor is not a SimpleSensor, fail
@@ -183,6 +145,6 @@ class SimpleSensor(Sensor):
         self.isPositioned(fatal=True)
 
         # distance is simply the 2-norm of the difference
-        d = float(norm(self._vectorify(self.position()) - self._vectorify(q)))
+        d = Sensor.distanceBetween(self.position(), q)
 
         return d < self.detectionRadius()
