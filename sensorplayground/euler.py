@@ -19,34 +19,39 @@
 # along with this software. If not, see <http://www.gnu.org/licenses/gpl.html>.
 
 from itertools import combinations
-from typing import Iterable, Final
-from numpy.linalg import norm
-from sensorplayground import Sensor, Position, zipboth
+from typing import Iterable, Dict, Final
+from sensorplayground import Sensor,TargetCount, SensorPlayground, Position, zipboth
 from simplicial import SimplicialComplex, EulerIntegrator
 
 
 class EulerEstimator:
-    '''An Euler integral overhearing structure and estimator.
+    '''An Euler integral overhearing structure and estimator. This
+    counts targets using Euler characteristic integration.
 
-    :param ss: the sensors
+    :param pg: the playground
     '''
 
     COUNT: Final[str] = 'count'   #: Attribute used to hold the count at each sensor simplex.
 
 
-    def __init__(self, ss: Iterable[Sensor]):
-        self._sensors = ss
-        self._c = self._build(ss)
+    def __init__(self, pg: SensorPlayground):
+        self._playground = pg
+        self._c: SimplicialComplex = None
 
 
-    def _build(self, ss: Iterable[Sensor]) -> SimplicialComplex:
+    def _build(self) -> SimplicialComplex:
         '''Build the overhearing structure for a set of sensors.
 
         The structure consists of a k-simplex for every set of (k + 1)
-        sensors whose sensor fields mutually overlap.
+        sensors whose sensor fields mutually overlap. Only sensors
+        having the :class:`TargetCount` modality are included
 
-        :param ss: the sensors'''
+        '''
+
         c = SimplicialComplex()
+
+        # extract the target counters
+        ss = [s for s in self._playground if isinstance(s, TargetCount)]
 
         # add the basis, using the sensors' ids as simplex names
         for s in ss:
@@ -87,16 +92,25 @@ class EulerEstimator:
 
 
     def overhearing(self) -> SimplicialComplex:
+        if self._c is None:
+            self.rebuild()
         return self._c
+
+
+    def rebuild(self):
+        '''Rebuild the overhearing structure. Needed if the underlying
+        playground has changed.'''
+        self._c = self._build()
 
 
     def clearCounts(self):
         '''Clear all the counts.'''
-        for s in self._c.simplicesOfOrder(0):
-             self._c[s.id()][EulerEstimator.COUNT] = 0
+        c = self.overhearing()
+        for s in c.simplices():
+            c[s][EulerEstimator.COUNT] = None
 
 
-    def setCounts(self, ss: Iterable[Sensor], cs: Iterable[int]):
+    def setCounts(self, cs: Dict[Sensor, int]):
         '''Set the counts observed at all the sensors. Any sensors
         not assigned a count get 0. If a sensor appears more than once
         in the iteration, the last value is the one that's assigned.
@@ -104,11 +118,20 @@ class EulerEstimator:
         :param ss: the sensors
         :param cs: the counts'''
         self.clearCounts()
-        for (s, c) in zipboth(ss, cs):
-            self._c[s.id()][EulerEstimator.COUNT] = c
+
+        # set the observed counts
+        c = self.overhearing()
+        for s in cs:
+            c[s.id()][EulerEstimator.COUNT] = cs[s]
+
+        # propagate the counts to higher simplices
+        for k in range(1, c.maxOrder() + 1):
+            for s in c.simplicesOfOrder(k):
+                c[s][EulerEstimator.COUNT] = min([c[f][EulerEstimator.COUNT] for f in c.faces(s)])
 
 
-    def estimateFromCounts(self, ss: Iterable[Sensor], cs: Iterable[int]) -> int:
+
+    def estimateFromCounts(self, cs: Dict[Sensor, int]) -> int:
         '''Estimate the total target count from the counts observed
         at all the sensors. Any senbsors not given a count are assumed
         to count zero.
@@ -118,11 +141,11 @@ class EulerEstimator:
         :returns: the estimate target count'''
 
         # set the counts
-        self.setCounts(ss, cs)
+        self.setCounts(cs)
 
         # integrate the Euler characteristics
         integrator = EulerIntegrator(EulerEstimator.COUNT)
-        count = integrator.integrate(self._c)
+        count = integrator.integrate(self.overhearing())
 
         return count
 
@@ -138,11 +161,12 @@ class EulerEstimator:
 
         :param ts: the targets
         :returns: the estimated target count'''
-        counts = []
+        counts = {}
 
         # compute the counts at each sensor
-        for s in self._sensors:
-            counts.append(s.counts(ts))
+        for s in self._playground:
+            if isinstance(s, TargetCount):
+                counts[s] = s.counts(ts)
 
         # compute the estimate
-        return self.estimateFromCounts(self._sensors, counts)
+        return self.estimateFromCounts(counts)

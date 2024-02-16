@@ -19,40 +19,43 @@
 # along with this software. If not, see <http://www.gnu.org/licenses/gpl.html>.
 
 import unittest
-from simplicial import SimplicialComplex
 from sensorplayground import *
 
 
 class TestEuler(unittest.TestCase):
 
+    def setUp(self):
+        self._playground = SensorPlayground()
+        self._estimator = EulerEstimator(self._playground)
+
+
+    # ---------- Overhearing structure ----------
+
     def testSingleSensor(self):
         '''Test we can build an estimator for a single sensor.'''
-        s = SimpleSensor([0.5, 0.5], 0.1)
-        e = EulerEstimator([s])
+        self._playground.addSensor(SimpleSensor(0.1), [0.5, 0.5])
 
-        c = e.overhearing()
+        c = self._estimator.overhearing()
         self.assertEqual(c.maxOrder(), 0)
         self.assertEqual(c.numberOfSimplicesOfOrder()[0], 1)
 
 
     def testTwoSeparatedSensor(self):
         '''Test we can build an estimator for two non-overlapping sensors.'''
-        s1 = SimpleSensor([0.25, 0.25], 0.1)
-        s2 = SimpleSensor([0.25, 0.75], 0.1)
-        e = EulerEstimator([s1, s2])
+        self._playground.addSensor(SimpleSensor(0.1), [0.25, 0.25])
+        self._playground.addSensor(SimpleSensor(0.1), [0.25, 0.75])
 
-        c = e.overhearing()
+        c = self._estimator.overhearing()
         self.assertEqual(c.maxOrder(), 0)
         self.assertEqual(c.numberOfSimplicesOfOrder()[0], 2)
 
 
     def testTwoOverlappingSensors(self):
         '''Test we can build an estimator for two overlapping sensors.'''
-        s1 = SimpleSensor([0.25, 0.25], 0.1)
-        s2 = SimpleSensor([0.25, 0.35], 0.1)
-        e = EulerEstimator([s1, s2])
+        self._playground.addSensor(SimpleSensor(0.1), [0.25, 0.25])
+        self._playground.addSensor(SimpleSensor(0.1), [0.25, 0.35])
 
-        c = e.overhearing()
+        c = self._estimator.overhearing()
         self.assertEqual(c.maxOrder(), 1)
         self.assertEqual(c.numberOfSimplicesOfOrder()[0], 2)
         self.assertEqual(c.numberOfSimplicesOfOrder()[1], 1)
@@ -60,12 +63,11 @@ class TestEuler(unittest.TestCase):
 
     def testThreeOverlappingSensors(self):
         '''Test we can build an estimator for three overlapping sensors.'''
-        s1 = SimpleSensor([0.25, 0.25], 0.1)
-        s2 = SimpleSensor([0.25, 0.35], 0.1)
-        s3 = SimpleSensor([0.25, 0.3], 0.1)
-        e = EulerEstimator([s1, s2, s3])
+        self._playground.addSensor(SimpleSensor(0.1), [0.25, 0.25])
+        self._playground.addSensor(SimpleSensor(0.1), [0.25, 0.35])
+        self._playground.addSensor(SimpleSensor(0.1), [0.25, 0.31])
 
-        c = e.overhearing()
+        c = self._estimator.overhearing()
         self.assertEqual(c.maxOrder(), 2)
         self.assertEqual(c.numberOfSimplicesOfOrder()[0], 3)
         self.assertEqual(c.numberOfSimplicesOfOrder()[1], 3)
@@ -74,13 +76,12 @@ class TestEuler(unittest.TestCase):
 
     def testFourOverlappingSensors(self):
         '''Test we can build an estimator for four overlapping sensors.'''
-        s1 = SimpleSensor([0.25, 0.25], 0.1)
-        s2 = SimpleSensor([0.25, 0.35], 0.1)
-        s3 = SimpleSensor([0.25, 0.3], 0.1)
-        s4 = SimpleSensor([0.3, 0.3], 0.1)
-        e = EulerEstimator([s1, s2, s3, s4])
+        self._playground.addSensor(SimpleSensor(0.1), [0.25, 0.25])
+        self._playground.addSensor(SimpleSensor(0.1), [0.25, 0.35])
+        self._playground.addSensor(SimpleSensor(0.1), [0.25, 0.31])
+        self._playground.addSensor(SimpleSensor(0.1), [0.3, 0.31])
 
-        c = e.overhearing()
+        c = self._estimator.overhearing()
         self.assertEqual(c.maxOrder(), 3)
         self.assertEqual(c.numberOfSimplicesOfOrder()[0], 4)
         self.assertEqual(c.numberOfSimplicesOfOrder()[1], 6)
@@ -88,19 +89,123 @@ class TestEuler(unittest.TestCase):
         self.assertEqual(c.numberOfSimplicesOfOrder()[3], 1)
 
 
-    def testFourPartiuallyOverlappingSensors(self):
+    def testFourPartiallyOverlappingSensors(self):
         '''Test we can build an estimator for four sensors with more complicated overlaps.'''
-        s1 = SimpleSensor([0.25, 0.25], 0.05)
-        s2 = SimpleSensor([0.25, 0.35], 0.05)
-        s3 = SimpleSensor([0.25, 0.3], 0.05)
-        s4 = SimpleSensor([0.15, 0.25], 0.06)
-        e = EulerEstimator([s1, s2, s3, s4])
+        self._playground.addSensor(SimpleSensor(0.05), [0.25, 0.25])
+        self._playground.addSensor(SimpleSensor(0.05), [0.25, 0.35])
+        self._playground.addSensor(SimpleSensor(0.05), [0.25, 0.3])
+        self._playground.addSensor(SimpleSensor(0.06), [0.15, 0.25])
 
-        c = e.overhearing()
+        c = self._estimator.overhearing()
         self.assertEqual(c.maxOrder(), 2)
         self.assertEqual(c.numberOfSimplicesOfOrder()[0], 4)
         self.assertEqual(c.numberOfSimplicesOfOrder()[1], 4)
         self.assertEqual(c.numberOfSimplicesOfOrder()[2], 1)
+
+
+    # ---------- Target counting ----------
+
+    def testOneSensorOneTarget(self):
+        '''Test we can detect one target in the range of one sensor.'''
+        self._playground.addSensor(SimpleSensor(0.1), [0.0, 0.0])
+        self._playground.addSensor(SimpleSensor(0.1), [1.0, 1.0])
+
+        c = self._estimator.estimateFromTargets([[0.05, 0.05]])
+        self.assertEqual(c, 1)
+
+
+    def testOneSensorOneTargetFail(self):
+        '''Test we can't detect one target out of range.'''
+        self._playground.addSensor(SimpleSensor(0.1), [0.0, 0.0])
+        self._playground.addSensor(SimpleSensor(0.1), [1.0, 1.0])
+
+        c = self._estimator.estimateFromTargets([[2.0, 2.0]])
+        self.assertEqual(c, 0)
+
+
+    def testTwoSensorsOneTarget(self):
+        '''Test we can detect one target in the range of two sensors.'''
+        self._playground.addSensor(SimpleSensor(1.0), [0.0, 0.0])
+        self._playground.addSensor(SimpleSensor(1.0), [0.0, 1.0])
+
+        c = self._estimator.estimateFromTargets([[0.05, 0.05]])
+        self.assertEqual(c, 1)
+
+
+    def testOneTriangleTwoTargets(self):
+        '''Test we can detect two targets in a triangle.'''
+        self._playground.addSensor(SimpleSensor(0.15), [0.0, 0.0])
+        self._playground.addSensor(SimpleSensor(0.15), [0.0, 0.1])
+        self._playground.addSensor(SimpleSensor(0.15), [0.1, 0.0])
+
+        c = self._estimator.estimateFromTargets([[0.02, 0.02],
+                                                 [0.02, 0.08]])
+        self.assertEqual(c, 2)
+
+
+    def testTwoTrianglesTwoTargets(self):
+        '''Test we can detect two targets in two adjacent triangles.'''
+        self._playground.addSensor(SimpleSensor(0.15), [0.0, 0.0])
+        self._playground.addSensor(SimpleSensor(0.15), [0.0, 0.1])
+        self._playground.addSensor(SimpleSensor(0.15), [0.1, 0.0])
+        self._playground.addSensor(SimpleSensor(0.15), [0.1, 0.1])
+
+        c = self._estimator.estimateFromTargets([[0.02, 0.02],
+                                                 [0.08, 0.08]])
+        self.assertEqual(c, 2)
+
+
+    def testBowtieOneTarget(self):
+        '''Test we can detect one target in a bowtie of two triangles.'''
+        self._playground.addSensor(SimpleSensor(0.15), [0.0, 0.0])
+        self._playground.addSensor(SimpleSensor(0.15), [0.0, 0.2])
+        self._playground.addSensor(SimpleSensor(0.15), [0.1, 0.1])
+        self._playground.addSensor(SimpleSensor(0.15), [0.2, 0.0])
+        self._playground.addSensor(SimpleSensor(0.15), [0.2, 0.2])
+
+        c = self._estimator.estimateFromTargets([[0.02, 0.02]])
+        self.assertEqual(c, 1)
+
+
+    def testBowtieTwoTargets(self):
+        '''Test we can detect two targets in a bowtie of two triangles.'''
+        self._playground.addSensor(SimpleSensor(0.15), [0.0, 0.0])
+        self._playground.addSensor(SimpleSensor(0.15), [0.0, 0.2])
+        self._playground.addSensor(SimpleSensor(0.15), [0.1, 0.1])
+        self._playground.addSensor(SimpleSensor(0.15), [0.2, 0.0])
+        self._playground.addSensor(SimpleSensor(0.15), [0.2, 0.2])
+
+        c = self._estimator.estimateFromTargets([[0.02, 0.02],
+                                                 [0.18, 0.18]])
+        self.assertEqual(c, 2)
+
+
+    def testTwoSeparatedTrianglesTwoTargets(self):
+        '''Test we can detect two targets in two separated triangles.'''
+        self._playground.addSensor(SimpleSensor(0.15), [0.0, 0.0])
+        self._playground.addSensor(SimpleSensor(0.15), [0.0, 0.1])
+        self._playground.addSensor(SimpleSensor(0.15), [0.1, 0.0])
+        self._playground.addSensor(SimpleSensor(0.15), [0.5, 0.0])
+        self._playground.addSensor(SimpleSensor(0.15), [0.0, 0.1])
+        self._playground.addSensor(SimpleSensor(0.15), [0.5, 0.0])
+
+        c = self._estimator.estimateFromTargets([[0.02, 0.02],
+                                                 [0.52, 0.05]])
+        self.assertEqual(c, 2)
+
+
+    def testTwoConnectedTrianglesTwoTargets(self):
+        '''Test we mis-count two targets in two connected triangles.'''
+        self._playground.addSensor(SimpleSensor(0.15), [0.0, 0.0])
+        self._playground.addSensor(SimpleSensor(0.15), [0.0, 0.1])
+        self._playground.addSensor(SimpleSensor(0.15), [0.1, 0.0])
+        self._playground.addSensor(SimpleSensor(0.15), [0.2, 0.0])
+        self._playground.addSensor(SimpleSensor(0.15), [0.2, 0.1])
+        self._playground.addSensor(SimpleSensor(0.15), [0.3, 0.0])
+
+        c = self._estimator.estimateFromTargets([[0.02, 0.02],
+                                                 [0.28, 0.05]])
+        self.assertEqual(c, 1)
 
 
 if __name__ == '__main__':
