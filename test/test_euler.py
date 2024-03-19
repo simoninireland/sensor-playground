@@ -35,6 +35,7 @@ class TestEuler(unittest.TestCase):
         '''Test we can build an estimator for a single sensor.'''
         self._playground.addSensor(SimpleSensor(0.1), [0.5, 0.5])
 
+        self._estimator.rebuild()
         c = self._estimator.overhearing()
         self.assertEqual(c.maxOrder(), 0)
         self.assertEqual(c.numberOfSimplicesOfOrder()[0], 1)
@@ -45,6 +46,7 @@ class TestEuler(unittest.TestCase):
         self._playground.addSensor(SimpleSensor(0.1), [0.25, 0.25])
         self._playground.addSensor(SimpleSensor(0.1), [0.25, 0.75])
 
+        self._estimator.rebuild()
         c = self._estimator.overhearing()
         self.assertEqual(c.maxOrder(), 0)
         self.assertEqual(c.numberOfSimplicesOfOrder()[0], 2)
@@ -55,6 +57,7 @@ class TestEuler(unittest.TestCase):
         self._playground.addSensor(SimpleSensor(0.1), [0.25, 0.25])
         self._playground.addSensor(SimpleSensor(0.1), [0.25, 0.35])
 
+        self._estimator.rebuild()
         c = self._estimator.overhearing()
         self.assertEqual(c.maxOrder(), 1)
         self.assertEqual(c.numberOfSimplicesOfOrder()[0], 2)
@@ -67,6 +70,7 @@ class TestEuler(unittest.TestCase):
         self._playground.addSensor(SimpleSensor(0.1), [0.25, 0.35])
         self._playground.addSensor(SimpleSensor(0.1), [0.25, 0.31])
 
+        self._estimator.rebuild()
         c = self._estimator.overhearing()
         self.assertEqual(c.maxOrder(), 2)
         self.assertEqual(c.numberOfSimplicesOfOrder()[0], 3)
@@ -81,6 +85,7 @@ class TestEuler(unittest.TestCase):
         self._playground.addSensor(SimpleSensor(0.1), [0.25, 0.31])
         self._playground.addSensor(SimpleSensor(0.1), [0.3, 0.31])
 
+        self._estimator.rebuild()
         c = self._estimator.overhearing()
         self.assertEqual(c.maxOrder(), 3)
         self.assertEqual(c.numberOfSimplicesOfOrder()[0], 4)
@@ -96,6 +101,7 @@ class TestEuler(unittest.TestCase):
         self._playground.addSensor(SimpleSensor(0.05), [0.25, 0.3])
         self._playground.addSensor(SimpleSensor(0.06), [0.15, 0.25])
 
+        self._estimator.rebuild()
         c = self._estimator.overhearing()
         self.assertEqual(c.maxOrder(), 2)
         self.assertEqual(c.numberOfSimplicesOfOrder()[0], 4)
@@ -110,6 +116,7 @@ class TestEuler(unittest.TestCase):
         self._playground.addSensor(SimpleSensor(0.1), [0.0, 0.0])
         self._playground.addSensor(SimpleSensor(0.1), [1.0, 1.0])
 
+        self._estimator.rebuild()
         c = self._estimator.estimateFromTargets([[0.05, 0.05]])
         self.assertEqual(c, 1)
 
@@ -119,6 +126,7 @@ class TestEuler(unittest.TestCase):
         self._playground.addSensor(SimpleSensor(0.1), [0.0, 0.0])
         self._playground.addSensor(SimpleSensor(0.1), [1.0, 1.0])
 
+        self._estimator.rebuild()
         c = self._estimator.estimateFromTargets([[2.0, 2.0]])
         self.assertEqual(c, 0)
 
@@ -128,6 +136,7 @@ class TestEuler(unittest.TestCase):
         self._playground.addSensor(SimpleSensor(1.0), [0.0, 0.0])
         self._playground.addSensor(SimpleSensor(1.0), [0.0, 1.0])
 
+        self._estimator.rebuild()
         c = self._estimator.estimateFromTargets([[0.05, 0.05]])
         self.assertEqual(c, 1)
 
@@ -138,6 +147,7 @@ class TestEuler(unittest.TestCase):
         self._playground.addSensor(SimpleSensor(0.15), [0.0, 0.1])
         self._playground.addSensor(SimpleSensor(0.15), [0.1, 0.0])
 
+        self._estimator.rebuild()
         c = self._estimator.estimateFromTargets([[0.02, 0.02],
                                                  [0.02, 0.08]])
         self.assertEqual(c, 2)
@@ -150,6 +160,7 @@ class TestEuler(unittest.TestCase):
         self._playground.addSensor(SimpleSensor(0.15), [0.1, 0.0])
         self._playground.addSensor(SimpleSensor(0.15), [0.1, 0.1])
 
+        self._estimator.rebuild()
         c = self._estimator.estimateFromTargets([[0.02, 0.02],
                                                  [0.08, 0.08]])
         self.assertEqual(c, 2)
@@ -163,6 +174,7 @@ class TestEuler(unittest.TestCase):
         self._playground.addSensor(SimpleSensor(0.15), [0.2, 0.0])
         self._playground.addSensor(SimpleSensor(0.15), [0.2, 0.2])
 
+        self._estimator.rebuild()
         c = self._estimator.estimateFromTargets([[0.02, 0.02]])
         self.assertEqual(c, 1)
 
@@ -175,6 +187,7 @@ class TestEuler(unittest.TestCase):
         self._playground.addSensor(SimpleSensor(0.15), [0.2, 0.0])
         self._playground.addSensor(SimpleSensor(0.15), [0.2, 0.2])
 
+        self._estimator.rebuild()
         c = self._estimator.estimateFromTargets([[0.02, 0.02],
                                                  [0.18, 0.18]])
         self.assertEqual(c, 2)
@@ -189,6 +202,7 @@ class TestEuler(unittest.TestCase):
         self._playground.addSensor(SimpleSensor(0.15), [0.0, 0.1])
         self._playground.addSensor(SimpleSensor(0.15), [0.5, 0.0])
 
+        self._estimator.rebuild()
         c = self._estimator.estimateFromTargets([[0.02, 0.02],
                                                  [0.52, 0.05]])
         self.assertEqual(c, 2)
@@ -203,6 +217,7 @@ class TestEuler(unittest.TestCase):
         self._playground.addSensor(SimpleSensor(0.15), [0.2, 0.1])
         self._playground.addSensor(SimpleSensor(0.15), [0.3, 0.0])
 
+        self._estimator.rebuild()
         c = self._estimator.estimateFromTargets([[0.02, 0.02],
                                                  [0.28, 0.05]])
         self.assertEqual(c, 1)
