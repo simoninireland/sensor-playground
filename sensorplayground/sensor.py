@@ -56,7 +56,7 @@ class Sensor:
 
         :param p: the vector, as a vector or list.
         :returns: the vector'''
-        if type(p) is list:
+        if type(p) is list or type(p) is tuple:
             return numpy.array(p)
         return cast(numpy.ndarray, p)
 
