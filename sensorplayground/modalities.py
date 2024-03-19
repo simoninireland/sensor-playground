@@ -25,7 +25,11 @@ from sensorplayground import Position, Direction
 # ---------- Abstract modalities ----------
 
 class Modality:
-    '''A sensing modality'''
+    '''A sensing modality.
+
+    Modalities are mixin classes defining the interface to a particular
+    kind of sensing. They should be applied to objects of type :class:`Sensor`:
+    a single sensor class can support multiple modalities.'''
 
     pass
 
