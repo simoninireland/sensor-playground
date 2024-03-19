@@ -18,8 +18,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this software. If not, see <http://www.gnu.org/licenses/gpl.html>.
 
-from typing import Iterable, Iterator
-from sensorplayground import Sensor, Position
+from typing import Iterator, Iterable, Callable
+from sensorplayground import Sensor, Position, Modality
 
 
 class SensorPlayground:
@@ -43,6 +43,13 @@ class SensorPlayground:
         s.setPosition(p)
 
 
+    def __len__(self) -> int:
+        '''Return the number of sensors in the playground.
+
+        :returns: the number of sensors'''
+        return len(self._sensors)
+
+
     def __iter__(self) -> Iterator[Sensor]:
         '''Return an iteratror over the sensors.
 
@@ -50,6 +57,8 @@ class SensorPlayground:
         for s in self._sensors:
             yield s
 
+
+    # ---------- Search functions ----------
 
     def sensorNearestTo(self, p: Position) -> Sensor:
         '''Return the sensor nearest to the given position.
@@ -69,3 +78,20 @@ class SensorPlayground:
                         nearest_s = s
                         nearest = d
         return nearest_s
+
+
+    def allSensors(self, p: Callable[[Sensor], bool]) -> Iterable[Sensor]:
+        '''Return all sensors for which the precicate is true.
+
+        :param p: the predicate
+        :returns: the passing sensors'''
+        return [s for s in self if p(s) ]
+
+
+    def allSensorsWithModality(self, m: type) -> Iterable[Modality]:
+        '''Return all sensors with the given modality. The modality
+        should be specified by class, and be a sub-class of :class:`Modality`.
+
+        :param m: the sensor modality
+        :returns: all sensors with that modality'''
+        return self.allSensors(lambda s: isinstance(s, m))
