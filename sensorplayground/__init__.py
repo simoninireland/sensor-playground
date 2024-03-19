@@ -30,7 +30,7 @@ from .sensor import Sensor, SimpleSensor
 from .playground import SensorPlayground
 
 # Analytics
-from .euler import EulerEstimator
+from .euler import EulerEstimator, FaceMin
 
 # Drawing
 from .drawing import drawField
