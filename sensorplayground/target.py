@@ -1,4 +1,4 @@
-# Init file for the sensor playground package
+# Targets
 #
 # Copyright (C) 2024 Simon Dobson
 #
@@ -18,22 +18,19 @@
 # You should have received a copy of the GNU General Public License
 # along with this software. If not, see <http://www.gnu.org/licenses/gpl.html>.
 
-# Utilities
-from .utils import zipboth
-from .types import Position, Direction
+from sensorplayground import Agent
 
-# Sensors
-from .modalities import Modality, Targetting, TargetCount, TargetDistance, TargetDirection
-from .sensor import Sensor, SimpleSensor
 
-# Targets
-from .target import Target
+class Target(Agent):
+    '''A target to be detected.
 
-# Playgrounds
-from .playground import SensorPlayground
+    Targets are abstract agents. They have position, can move from
+    point to point, and take actions. They act independently of
+    sensors which may be observing them.
 
-# Analytics
-from .euler import EulerEstimator, FaceMin
+    :param id: (optional) the target's identifier
 
-# Drawing
-from .drawing import drawField
+    '''
+
+    def __init__(self, id: Any = None):
+        super().__init__(id)

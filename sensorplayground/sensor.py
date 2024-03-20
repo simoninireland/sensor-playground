@@ -21,79 +21,20 @@
 import numpy
 from numpy.linalg import norm
 from typing import List, Union, Any, Iterable, cast
-from sensorplayground import TargetCount
-
-
-# ---------- Helper types ----------
-
-Position = Union[List[float], numpy.ndarray]
+from sensorplayground import Position, Agent, TargetCount
 
 
 # ---------- Abstract base class of sensors ----------
 
-class Sensor:
+class Sensor(Agent):
     '''A sensor.
 
-    :param id: the sensor's identifier (defaults to a unique number)
+    :param id: (optional) the sensor's identifier
     '''
-
-    # Name generation
-    UNIQUE = 0   #: Source if unique sensor ids.
 
 
     def __init__(self, id: Any = None):
-        if id is None:
-            id = Sensor.UNIQUE
-            Sensor.UNIQUE += 1
-        self._id = id
-
-
-    # ---------- Helper methods ----------
-
-    @staticmethod
-    def vectorPosition(p: Position) -> numpy.ndarray:
-        '''Ensure p is a numpy vector.
-
-        :param p: the vector, as a vector or list.
-        :returns: the vector'''
-        if type(p) is list or type(p) is tuple:
-            return numpy.array(p)
-        return cast(numpy.ndarray, p)
-
-
-    @staticmethod
-    def distanceBetween(p: Position, q: Position) -> float:
-        '''Return the distance between two points. The points must
-        have the same dimensions.
-
-        :param p: one point
-        :param q: the other point
-        :returns: the distance'''
-        return float(norm(Sensor.vectorPosition(p) - Sensor.vectorPosition(q)))
-
-
-    # ---------- Access ----------
-
-    def position(self) -> Position:
-        return self._position
-
-
-    def setPosition(self, p: Position):
-        self._position = p
-
-
-    def isPositioned(self, fatal = False)-> bool:
-        if self._position is not None:
-            return True
-        else:
-            if fatal:
-                raise ValueError(f'Sensor {self.id()} is not positioned')
-            else:
-                return False
-
-
-    def id(self) -> Any:
-        return self._id
+        super().__init__(id)
 
 
 # ---------- Sensors with fixed radii fields ----------
@@ -104,6 +45,10 @@ class SimpleSensor(Sensor, TargetCount):
 
     For topological reasons the sensor field is an open region, and
     so includes all points at a distance strictly less than the radius.
+
+    The sensor has no default behaviour, and so will be entirely
+    passive in a simulation. To provide autonomous behaviour,
+    override :meth:`setUp`.
 
     :param r: the sensing field radius (defaults to 1.0)
     :param id: (optional) sensor identifier'''
