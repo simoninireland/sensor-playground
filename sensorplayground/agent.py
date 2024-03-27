@@ -50,8 +50,8 @@ class Agent:
     def vectorPosition(p: Position) -> numpy.ndarray:
         '''Ensure p is a numpy vector.
 
-        :param p: the vector, as a vector or list.
-        :returns: the vector'''
+        :param p: the position, as a vector or list.
+        :returns: the position as a vector'''
         if type(p) is list or type(p) is tuple:
             return numpy.array(p)
         return cast(numpy.ndarray, p)
@@ -62,8 +62,8 @@ class Agent:
         '''Return the distance between two points. The points must
         have the same dimensions.
 
-        :param p: one point
-        :param q: the other point
+        :param p: one position
+        :param q: the other position
         :returns: the distance'''
         return float(norm(Agent.vectorPosition(p) - Agent.vectorPosition(q)))
 
