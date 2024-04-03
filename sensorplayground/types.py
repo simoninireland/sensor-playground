@@ -20,11 +20,3 @@
 
 import numpy
 from typing import List, Union
-
-
-# Positions in 2- or 3-space
-Position = Union[List[float], numpy.ndarray]
-
-
-# Directions
-Direction = List[float]

@@ -31,6 +31,8 @@ SOURCES = \
 	sensorplayground/py.typed \
 	sensorplayground/utils.py \
 	sensorplayground/types.py \
+	sensorplayground/position.py \
+	sensorplayground/agent.py \
 	sensorplayground/modalities.py \
 	sensorplayground/playground.py \
 	sensorplayground/sensor.py \
@@ -40,7 +42,8 @@ SOURCES = \
 SOURCES_TESTS = \
 	test/__init__.py \
 	test/test_utils.py \
-	test/test_euler.py
+	test/test_euler.py \
+	test/test_trajectory.py
 TESTSUITE = test
 
 

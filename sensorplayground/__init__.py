@@ -20,9 +20,10 @@
 
 # Utilities
 from .utils import zipboth
-from .types import Position, Direction
 
-# Sensors
+# Agents, targets, and sensors
+from .position import Position, Direction, Trajectory
+from .agent import Agent
 from .modalities import Modality, Targetting, TargetCount, TargetDistance, TargetDirection
 from .sensor import Sensor, SimpleSensor
 
