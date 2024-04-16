@@ -19,7 +19,7 @@
 # along with this software. If not, see <http://www.gnu.org/licenses/gpl.html>.
 
 from typing import Iterable
-from sensorplayground import Position, Direction
+from sensorplayground import Position, Direction, Agent
 
 
 # ---------- Abstract modalities ----------
@@ -44,48 +44,20 @@ class Targetting(Modality):
     '''
 
 
-    # ---------- Subclass API ----------
-
-    def canDetectTarget(self, q: Position) -> bool:
-        '''Test whether the sensor can detect a target at posiiton q.
-
-        :param q: the position of the target
-        :return: True if the target is detectable by this sensor'''
-        raise NotImplementedError('canDetectTarget')
-
-
-    def isOverlappingWith(self, s: 'Sensor') -> bool:
-        '''Test whether this sensor's detections overlap with another's.
-
-        This entirely depends on calculations in sub-classes. Different
-        sub-clasess may or may not be able to compute overlapping with
-        each other.
-
-        :param s: the other sensor
-        :returns True if the two sensors overlap'''
-        raise NotImplementedError('isOverlappingWith')
-
-
     # ---------- Highlevel API ----------
-    # (Constructed from the subclassed operations)
 
-    def detectsTarget(self, q: Position) -> bool:
-        '''Test whether a target at position q is detected.
+    def detectsTarget(self, t: Agent) -> bool:
+        '''Test whether a target is detected.
 
         By default a target marked as detectable by :meth:`canDetectTarget`
         is detected: overriding this method allows for errors in detection.
 
+        This method must be overridden by sub-classes.
+
         :param q: the target position
         :returns: True if the target is detected'''
-        return self.canDetectTarget(q)
+        raise  NotImplementedError('detectsTarget')
 
-
-    def detects(self, ts: Iterable[Position]) -> Iterable[Position]:
-        '''Return the targets in ts that this sensor detects.
-
-        :param ts: the target positions
-        :returns: the count'''
-        return [t for t in ts if self.detectsTarget(t)]
 
 
 # ---------- Standard targetting modalities ----------
@@ -93,12 +65,22 @@ class Targetting(Modality):
 class TargetCount(Targetting):
     '''A target counting modality.'''
 
-    def counts(self, ts: Iterable[Position]) -> int:
-        '''Return the number of targets in ts that this sensor counts.
+    def numberOfTargets(self) -> int:
+        '''Return the number of targets the sensor last counted.
 
-        :param ts: the target positions
-        :returns: the count'''
-        return len(list(self.detects(ts)))
+        This method must be overridden by sub-classes.
+
+        :returns: the number of targets'''
+        raise NotImplementedError('numberOfTargets')
+
+
+    def countTargetsEvent(self, t: float):
+        '''Count the targets within range of the sensor.
+
+        This method must be overridden by sub-classes.
+
+        :param t: simulation time (ignored)'''
+        raise NotImplementedError('countTargets')
 
 
 class TargetDistance(Targetting):
@@ -107,13 +89,11 @@ class TargetDistance(Targetting):
     This modality assigns a distance to each detected target.
     '''
 
-    def distanceTo(self, ts: Iterable[Position]) -> Iterable[float]:
-        '''Return the distances xto the targets detected by
-        this sensor, or None if the target is not detected.
+    def countTargets(self, t: float):
+        '''Count the targets within range of the sensor.
 
-        :param ts: the targets
-        :returns: the distances'''
-        raise NotImplementedError('distanceTo')
+        :param t: simulation time (ignored)'''
+        raise NotImplementedError('countTargets')
 
 
 class TargetDirection(Targetting):

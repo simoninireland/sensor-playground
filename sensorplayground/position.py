@@ -33,14 +33,35 @@ Direction = List[float]
 BoundingBox = Tuple[Position, Position]
 
 
+# Distance calculations
+def vectorPosition(p: Position) -> numpy.ndarray:
+    '''Ensure p is a numpy vector.
+
+    :param p: the position, as a vector or list.
+    :returns: the position as a vector'''
+    if type(p) is list or type(p) is tuple:
+        return numpy.array(p)
+    return cast(numpy.ndarray, p)
+
+
+def distanceBetween(p: Position, q: Position) -> float:
+    '''Return the distance between two points. The points must
+    have the same dimensions.
+
+    :param p: one position
+    :param q: the other position
+    :returns: the distance'''
+    return float(norm(Agent.vectorPosition(p) - Agent.vectorPosition(q)))
+
+
 # Trajectories
 class Trajectory:
     '''A motion in space.
 
-    A trajectory consists of start and end spacetime points, a position
-    and an associated simulation time. They also provide access
-    methods to determine a position along the trajectory at any time
-    between these two points, and the bounding box of the trajectory.
+    A trajectory consists of start and end spacetime points consisting
+    of a position and a time. It provides access methods to determine
+    a position along the trajectory at any time between these two
+    points, and the bounding box of the trajectory.
 
     By default a trajectory performs linear interpolation between the
     endpoints. Sub-classes can modify this to introduce more complicated
@@ -62,9 +83,9 @@ class Trajectory:
         if len(startp) != len(endp):
             raise ValueError(f'Endpoints have different dimensions ({len(startp)} vs {len(endp)})')
 
-        # make sure times are correctly ordered
-        if startt > endt:
-            raise ValueError(f'Endpoint start time {startt} comes after end time {endt}')
+        # check times
+        if startt >= endt:
+            raise ValueError(f'Trajectory start time ({startt}) is later than its end time ({endt})')
 
         self._startp = startp
         self._startt = startt
@@ -79,6 +100,13 @@ class Trajectory:
 
         :returns: the pair of start and end times'''
         return (self._startt, self._endt)
+
+
+    def endpoints(self) -> Tuple[Position, Position]:
+        '''Return the start and end points of the trajectory.
+
+        :returns: the start and end points'''
+        return (self._startp, self._endp)
 
 
     def isWithinInterval(self, t: float, fatal: bool = False) -> bool:
@@ -150,6 +178,11 @@ class Trajectory:
         may be overridden by sub-classses.
 
         :returns: the bounding box'''
+
+        # check that the trajectory is grounded at a start point
+        if self._startp is None:
+            raise ValueError('Trajectory does not have a starting point')
+
         bl = [0] * len(self._startp)
         tr = [0] * len(self._startp)
         for i in range(len(self._startp)):

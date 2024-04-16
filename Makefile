@@ -43,7 +43,9 @@ SOURCES_TESTS = \
 	test/__init__.py \
 	test/test_utils.py \
 	test/test_euler.py \
-	test/test_trajectory.py
+	test/test_trajectory.py \
+	test/test_playground.py \
+	test/test_scenarios.py
 TESTSUITE = test
 
 

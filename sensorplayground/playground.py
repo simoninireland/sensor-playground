@@ -19,109 +19,141 @@
 # along with this software. If not, see <http://www.gnu.org/licenses/gpl.html>.
 
 from heapq import heappush, heappop
-from typing import Iterator, Iterable, Callable, Union, List, Tuple
-from sensorplayground import Sensor, Target, Position, Modality
+from rtree import index
+from typing import Callable, Iterable, Dict, List, Tuple, Set, Any, Union
+from sensorplayground import Agent, Sensor, Position, BoundingBox
 
 
 # Events
-Agent = Union[Sensor. Target]
-EventFunction = Callable[[Agent, float], None]
-Event = Tuple[float, int, Callable[[], None]]
+EventFunction = Callable[[float], None]
+Event = Tuple[float, int, Union[Sensor, Agent], Callable[[], None]]
 
 
 class SensorPlayground:
     '''A field of sensors, targets, and other elements, coupled with a
     discrete-event simulator.
 
+    :param d: (optional) the dimensions of the playground (2 or 3) (defaults to 2)
     '''
 
 
-    def __init__(self):
+    MAXIMUM_TIME = 10000    #: Default maximum simulation time.
+
+
+    def __init__(self, d: int = 2):
         # state
-        self._sensors: List[Sensor] = []
-        self._targets: List[Target] = []
+        self._agents: Set[Agent] = set()
+        self._agentIds: Dict[Any, Agent] = dict()
+
+        # locations tree
+        p = index.Property()
+        p.dimension = d
+        self._boxes: index.Index = index.Index(properties=p)
+        self._boxes.interleaved = True
 
         # simulation
         self._simulationTime: float = 0
-        self._maximumSimulationTime: float = 10000
+        self._maximumSimulationTime: float = SensorPlayground.MAXIMUM_TIME
         self._events: List[Event] = []
         self._eventId: int = 0
 
 
-    # ---------- Sensor management ----------
+    # ---------- Agent management ----------
 
-    def addSensor(self, s: Sensor, p: Position):
-        '''Insert a sensor into the playground at the given position.
+    def addAgent(self, a: Agent):
+        '''Add an agent to the playground.
 
-        :param s: the sensor
-        :param p: the sensor position'''
-        self._sensors.append(s)
-        s.setPosition(p)
+        :param a: the agent'''
+        self._agents.add(a)
+        self._agentIds[a.id()] = a
 
-
-    def __len__(self) -> int:
-        '''Return the number of sensors in the playground.
-
-        :returns: the number of sensors'''
-        return len(self._sensors)
+        # set up the agent within the playground
+        a.setUp(self)
 
 
-    def __iter__(self) -> Iterator[Sensor]:
-        '''Return an iteratror over the sensors.
+    def removeAgent(self, aid: Union[Agent, Any]):
+        '''Remove an agent and any events associated with it.
 
-        :returns: self (the iterator)'''
-        for s in self._sensors:
-            yield s
+        :param aid: the agent or agent id'''
+
+        # disambiguate
+        id = aid.id() if isinstance(aid, Agent) else aid
+        a = self._agentIds[id]
+
+        # remove the agent
+        self._agents.remove(a)
+        del self._agentIds[id]
+
+        # remove associated events (mark as associated with no agent)
+        self._events = [(t, id, (None if eva == a else eva), ef) for (t, id, eva, ef) in self._events]
 
 
-    # ---------- Target management ----------
+    def getAgent(self, id: Any) -> Agent:
+        '''Retrieve the agent with the given id.
 
-    def addTarget(self, t: Target, p: Position):
-        '''Insert a targetinto the playground at the given position.
+        A KeyError will be raised if there is no such agent in the playground.
 
-        :param t: the target
-        :param p: the target's initial position'''
-        self._targets.append(t)
-        t.setPosition(p)
+        :param id: the agent id
+        :returns: the agent'''
+        return self._agentIds[id]
+
+
+    def agents(self) -> Iterable[Agent]:
+        '''Return the agents in the playground.
+
+        :returns: the agents'''
+        return self._agents
+
+
+    # ---------- dict interface ----------
+
+    # There is no __setitem__() as it sits awkwardly with the use of agents in addAgent()
+
+
+    def __getitem__(self, id: Any) -> Agent:
+        '''Get an agent by id.
+
+        This is equivalent to calling :meth:`getAgent`.
+
+        :param id: the agent id
+        :returns: the agent'''
+        return self.getAgent(id)
+
+
+    def __contains__(self, id: Any) -> bool:
+        '''Test whether the agent is in the playground.
+
+        :param id: the agent id
+        :returns : True if the playground contains this agent'''
+        return id in self._agentIds
+
+
+    # ---------- Location functions ----------
+
+    def setAgentPosition(self, a: Agent, bb: BoundingBox):
+        '''Set the bounding box for an agent. This is used to
+        compute the effects of events.
+
+        :param a: the agent
+        :param bb: the bounding box'''
+        self._boxes.insert(a.id(), bb[0] + bb[1])
 
 
     # ---------- Search functions ----------
 
-    def sensorNearestTo(self, p: Position) -> Sensor:
-        '''Return the sensor nearest to the given position.
+    def allWithinBoundingBox(self, bb: BoundingBox) -> Iterable[Agent]:
+        '''Return all the egents that are potentially observable by a sensor
+        with the given field of view bounding box.
 
-        :param p: the position
-        :returns: the nearest sensor, or None if there are no sensors'''
-        pos = Sensor.vectorPosition(p)
-        nearest = 0
-        nearest_s = None
-        for s in self:
-            if s.isPositioned():
-                if nearest_s is None:
-                    nearest_s = s
-                else:
-                    d = Sensor.distanceBetween(s.position(), pos)
-                    if d < nearest:
-                        nearest_s = s
-                        nearest = d
-        return nearest_s
+        The agents are not necessarily actually observable, as the bounding box
+        may be an approximation of the sensor's actrual field of view.
 
+        :param bb: the bounding box of the field of view
+        :returns: the agents'''
 
-    def allSensors(self, p: Callable[[Sensor], bool]) -> Iterable[Sensor]:
-        '''Return all sensors for which the precicate is true.
+        # TBD -- return all agents for now
+        return self.agents()
 
-        :param p: the predicate
-        :returns: the passing sensors'''
-        return [s for s in self if p(s) ]
-
-
-    def allSensorsWithModality(self, m: type) -> Iterable[Modality]:
-        '''Return all sensors with the given modality. The modality
-        should be specified by class, and be a sub-class of :class:`Modality`.
-
-        :param m: the sensor modality
-        :returns: all sensors with that modality'''
-        return self.allSensors(lambda s: isinstance(s, m))
 
 
     # ---------- Discrete-event simulation ----------
@@ -156,7 +188,7 @@ class SensorPlayground:
         self._maximumTime = t
 
 
-    def newEvent(self) -> int:
+    def _newEvent(self) -> int:
         '''Return a new, unique, event identifier.
 
         :returns: a unique identifier'''
@@ -165,10 +197,10 @@ class SensorPlayground:
         return id
 
 
-    def postEvent(self, a: Agent, t: float, ef: EventFunction) -> int:
+    def postEvent(self, sa: Union[Sensor, Agent], t: float, ef: EventFunction) -> int:
         '''Post an event for a specific time.
 
-        :param a: the agent
+        :param sa: the sensor or agent the event is occurs on
         :param t: the simulation time
         :param ef: the event function
         :returns: an event id'''
@@ -178,8 +210,8 @@ class SensorPlayground:
             raise ValueError(f'Event posted for the past (t={t})')
 
         # insert the event into the right place in the event queue
-        id = self.newEvent()
-        ev = [t, id, (lambda: ef(t, a))]
+        id = self._newEvent()
+        ev = [t, id, sa, (lambda: ef(t))]
         heappush(self._events, ev)
         return id
 
@@ -205,10 +237,10 @@ class SensorPlayground:
 
         # event function to fire an event and then re-schedule it
         def repeat(a, tc):
-            ef()
+            ef(a, tc)
             self.postEvent(a, tc + dt, repeat)
 
-        self.postEvent(a, t, repeat)
+        return self.postEvent(a, t, repeat)
 
 
     def hasEvents(self) -> bool:
@@ -216,7 +248,7 @@ class SensorPlayground:
         simulation time has not been exceeded.
 
         :returns: True if there are events left to run'''
-        return len(self._events) > 0 and self.now() < self._maximumTime
+        return len(self._events) > 0 and self._simulationTime < self._maximumSimulationTime
 
 
     def run(self) -> int:
@@ -226,7 +258,12 @@ class SensorPlayground:
         n = 0
         while self.hasEvents():
             # extract the next event
-            (t, _, ef) = heappop(self._events)
+            (t, _, a, ef) = heappop(self._events)
+
+            # skip the event if it is marked as deleted (not associated
+            # with an agent)
+            if a is None:
+                continue
 
             # advance the simulation time
             self.setSimulationTime(t)

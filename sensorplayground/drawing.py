@@ -21,10 +21,10 @@
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
 from typing import Iterable
-from sensorplayground import SimpleSensor, Position
+from sensorplayground import Agent, Position
 
 
-def drawField(ss: Iterable[SimpleSensor], ts: Iterable[Position] = None,
+def drawField(ss: Iterable[Agent], ts: Iterable[Position] = None,
               ax = None, backgroundColour = '0.95',
               subfieldXY = None, subfieldWH = None,
               showSensors = True,

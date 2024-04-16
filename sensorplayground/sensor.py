@@ -21,75 +21,180 @@
 import numpy
 from numpy.linalg import norm
 from typing import List, Union, Any, Iterable, cast
-from sensorplayground import Position, Agent, TargetCount
+from sensorplayground import Position, distanceBetween, BoundingBox, Agent, TargetCount
 
 
-# ---------- Abstract base class of sensors ----------
+class Sensor:
+    '''A sensor attached to an agent.
 
-class Sensor(Agent):
-    '''A sensor.
+    :param a: the agent to which the sensor is attached
+    :param id: (optional) sensor id (defaults to a unique identifier)'''
 
-    :param id: (optional) the sensor's identifier
-    '''
-
-
-    def __init__(self, id: Any = None):
-        super().__init__(id)
+    # Name generation
+    UNIQUE = 0                    #: Source of unique sensor ids.
 
 
-# ---------- Sensors with fixed radii fields ----------
+    def __init__(self, a: Agent= None, id: Any = None):
+        if id is None:
+            id = f'sensor{Sensor.UNIQUE}'
+            id = Sensor.UNIQUE
+            Sensor.UNIQUE += 1
+        self._id: Any = id
+        self._agent: Agent = a
 
-class SimpleSensor(Sensor, TargetCount):
+
+    # ---------- Access ----------
+
+    def id(self) -> Any:
+        '''Return the sensor id.
+
+        :returns: the id'''
+        return self._id
+
+
+    def agent(self) -> Agent:
+        '''Return the agent to which this sensor is attached.
+
+        :returns: the agent'''
+        return self._agent
+
+
+    def setAgent(self, a: Agent):
+        '''Associate the sensor with the given agent.
+
+        :param a: the agent'''
+
+        # detach from previous agent if there is one
+        if self._agent is not None:
+            self._agent.removeSensor(self)
+        self._agent = a
+
+
+    def position(self) -> Position:
+        '''The sensor's position is that of its agent.
+
+        :returns: the position'''
+        return self.agent().position()
+
+
+    def distanceTo(self, a: Agent) -> float:
+        '''The distance to another agent is its distance from this
+        sensor's agent.
+
+        :param a: the other agent
+        :returns: the distance'''
+        return self.agent().distanceTo(a)
+
+
+    def playground(self) -> 'SensorPlayground':
+        '''The sensor's playground is that of its agent.
+
+        :returns: the playground'''
+        return self.agent().playground()
+
+
+    def fieldOfView(self) -> BoundingBox:
+        '''Return the sensor's current field of view.
+
+        This will typically need to be computed from the sensor's position,
+        and so may change with time as the agent moves. The default
+        returns None, indicating that the sensor has no field of view.
+
+        :returns: the field of view bounding box'''
+        return None
+
+
+    # ---------- Event interface ----------
+
+    def sample(self, t: float):
+        '''Event that causes the event to take a sample.
+
+        This method sould be overridden byb sub-classes. The default
+        does nothing.
+
+        :param t: the current siimulation time'''
+        pass
+
+
+# ---------- Simple sensors for debugging ----------
+
+class SimpleTargetCountSensor(Sensor, TargetCount):
+
     '''A sensor with a circular or spherical sensing field defined
-    by its radius that detects targets within this field.
+    by its radius that detects targets within this field. The
+    sensor doesn't move and so can't be re-positioned or assigned
+    a motion.
 
     For topological reasons the sensor field is an open region, and
     so includes all points at a distance strictly less than the radius.
 
-    The sensor has no default behaviour, and so will be entirely
-    passive in a simulation. To provide autonomous behaviour,
-    override :meth:`setUp`.
-
+    :param a: the agent
     :param r: the sensing field radius (defaults to 1.0)
     :param id: (optional) sensor identifier'''
 
 
-    def __init__(self, r: float = 1.0, id: Any = None):
-        super().__init__(id)
+    def __init__(self, a: Agent = None, r: float = 1.0, id: Any = None):
+        super().__init__(id, id=a)
         self._detectionRadius = r
+        self._targets = 0
 
 
     def detectionRadius(self) -> float:
         return self._detectionRadius
 
 
-    def isOverlappingWith(self, s: Sensor) -> bool:
-        '''Compute overlaps with another :class:`SimpleSensor`.
+    def fieldOfView(self) -> BoundingBox:
+        '''Return the sensor's bounding box based on its posiotion
+        and detection radius.
 
-        :param s: the other sensor
-        :returns: True if the sensors overlap'''
-        if type(s) is SimpleSensor:
-            # check we know both positions
-            self.isPositioned(fatal=True) and s.isPositioned(fatal=True)
-
-            # check whether the sensor fields overlap
-            d = Sensor.distanceBetween(self.position(), s.position())
-            return d < self.detectionRadius() + s.detectionRadius()
-        else:
-            # if the other sensor is not a SimpleSensor, fail
-            raise ValueError(f'Can\'t compute overlap with an instance of {type(s)}')
+        :returns: the bounding box'''
+        p = self.position()
+        r = self.detectionRadius()
+        bl = p.copy()
+        tr = p.copy()
+        for i in range(len(p)):
+            bl[i] = p[i] - r
+            tr[i] = p[i] + r
+        return (bl, tr)
 
 
-    def canDetectTarget(self, q: Position) -> bool:
-        '''Detects a target if it is (strictly) within the sensing field radius.
+    def numberOfTargets(self) -> int:
+        '''Return the number of targets the sensor last counted.
 
-        :param q: the position of the target
-        :return: True if the target is detectable by this sensor'''
+        :returns: the number of targets'''
+        return self._targets
 
-        # check we know the positions
-        self.isPositioned(fatal=True)
 
-        # distance is simply the 2-norm of the difference
-        d = Sensor.distanceBetween(self.position(), q)
+    def detectsTarget(self, t: Agent) -> bool:
+        '''Always True (targets in range are always detected.
 
-        return d < self.detectionRadius()
+        :param t: the target
+        :returns: True'''
+        return True
+
+
+    # ---------- Events ----------
+
+    def sample(self, t: float):
+        '''Count the targets within range of the sensor.
+
+        This involves finding all targets within the sensor's detection
+        radius (first using a bounding box, then refining), and then
+        checking whether each target is actually detected based on its
+        position. The number of targets is recorded for retrieval
+        using :meth:`numberOfTargets`.
+
+        :param t: simulation time (ignored)'''
+        r = self.detectionRadius()
+        p = self.position()
+
+        # retrieve all potentially-detected targets
+        bb = self.getBoundingBox()
+        possible = self.playground().allWithinBoundingBox(bb, cls=Agent)
+        targets = [t for t in possible if self.distanceTo(t) < r]
+
+        # determine which targets are detected
+        detected = [t for t in targets if self.detectsTarget(t)]
+
+        # record the detected targets
+        self._targets = len(detected)
