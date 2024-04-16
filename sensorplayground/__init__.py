@@ -27,9 +27,6 @@ from .agent import Agent, MobileAgent
 from .modalities import Modality, Targetting, TargetCount, TargetDistance, TargetDirection
 from .sensor import Sensor, SimpleTargetCountSensor
 
-# Targets
-from .target import Target
-
 # Playgrounds
 from .playground import SensorPlayground
 
