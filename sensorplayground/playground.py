@@ -195,7 +195,7 @@ class SensorPlayground:
 
     # ---------- Search functions ----------
 
-    def allWithinFieldOfView(self, s: Sensor, cls: Type[Agent] = None) -> Iterable[Agent]:
+    def allAgentsWithinFieldOfView(self, s: Sensor, cls: Type[Agent] = None) -> Iterable[Agent]:
         '''Return all the agents that are potentially observable by a given
         sensor.
 
@@ -223,6 +223,39 @@ class SensorPlayground:
         possibles = [a for a in possibles if a != s and a != s.agent()]
 
         return possibles
+
+
+    def allSensorsObserving(self, a: Agent, cls: Type[Sensor] = None) -> Iterable[Sensor]:
+        '''Return all thes sensors that can observe an event on the given
+        agent.
+
+        The sensors won't necessarily observe the event, as this will
+        depend on the observability of the given agent. by that sensor.
+
+        If the agent also has sensors of a potentially observing type attached
+        to it, they will be returned as well.
+
+        :param a: the agent
+        :param cls: (optional) the class of sensor making the observations
+        :returns: the sensors
+
+        '''
+        p = a.position()
+
+        # find all agents in whose bounding box we sit
+        coords = tuple(p + p)
+        possibleAgents = [self._getAgent(i) for i in self._boxes.intersection(coords)]
+        print(possibleAgents)
+
+        # extract all sensors from these agents
+        ss = [a.sensors() for a in possibleAgents]
+        possibleSensors = set.union(*ss)
+
+        # reduce by type
+        if cls is not None:
+            possibleSensors = [s for s in possibleSensors if isinstance(s, cls)]
+
+        return possibleSensors
 
 
     # ---------- Discrete-event simulation ----------
