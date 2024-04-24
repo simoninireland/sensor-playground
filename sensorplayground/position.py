@@ -19,7 +19,8 @@
 # along with this software. If not, see <http://www.gnu.org/licenses/gpl.html>.
 
 import numpy
-from typing import List, Union, Tuple
+from numpy.linalg import norm
+from typing import List, Union, Tuple, cast
 
 
 # Positions in 2- or 3-space
@@ -51,7 +52,7 @@ def distanceBetween(p: Position, q: Position) -> float:
     :param p: one position
     :param q: the other position
     :returns: the distance'''
-    return float(norm(Agent.vectorPosition(p) - Agent.vectorPosition(q)))
+    return float(norm(vectorPosition(p) - vectorPosition(q)))
 
 
 # Trajectories

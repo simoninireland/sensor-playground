@@ -19,9 +19,8 @@
 # along with this software. If not, see <http://www.gnu.org/licenses/gpl.html>.
 
 import numpy
-from numpy.linalg import norm
 from typing import List, Union, Any, Dict, Iterable, Set, cast
-from sensorplayground import Position, distanceBetween, Direction, Trajectory
+from sensorplayground import Position, BoundingBox, distanceBetween, Direction, Trajectory, Sensor
 
 # There is a circular import between Agent and SensorPlayground at the
 # typing level (but not at the execution level), when providing types
@@ -58,7 +57,7 @@ class Agent:
         self._id: Any = id
         self._playground: 'SensorPlayground' = None
         self._position: Position = None
-        self._sensors: Set['Sensor'] = []
+        self._sensors: Set['Sensor'] = set()
         self._sensorIds: Dict[Any, Sensor] = dict()
 
 
@@ -91,7 +90,7 @@ class Agent:
 
     def addSensor(self, s: 'Sensor'):
         '''Add a sensor to the agent. The sensor's position will he
-        that of the agent as it possibly movbes.
+        that of the agent as it possibly moves.
 
         :param s: the sensor'''
         self._sensors.add(s)
@@ -101,13 +100,13 @@ class Agent:
         s.setAgent(self)
 
 
-    def removeSensor(self, sid: Union['Sensor', Any]):
+    def removeSensor(self, sid: Union[Sensor, Any]):
         '''Remove a sensor from the agent.
 
         :param sid: the sensor or its id'''
 
         # disambiguate
-        id = sid.id() if isinstance(sid, 'Sensor') else sid
+        id = sid.id() if isinstance(sid, Sensor) else sid
         s = self._sensorIds[id]
 
         # remove the agent
@@ -124,11 +123,28 @@ class Agent:
         return self._position
 
 
+    def boundingBox(self) -> BoundingBox:
+        '''Return the bounding box for this agent.
+
+        By default the bounding box is the static position, or None
+        if the agent is unpositioned.
+
+        :returns: the bounding box or None'''
+        if self.isPositioned():
+            return (self._position, self._position)
+        else:
+            return None
+
+
     def setPosition(self, p: Position):
         '''Set the agent's static position.
 
         :param p: the position'''
         self._position = p
+        if p is None:
+            self.playground().removeAgentBoundingBox(self)
+        else:
+            self.playground().setAgentBoundingBox(self, self.boundingBox())
 
 
     def isPositioned(self, fatal = False)-> bool:
@@ -222,6 +238,28 @@ class MobileAgent(Agent):
         self._trajectory = None
 
 
+    def boundingBox(self) -> BoundingBox:
+        '''Return the bounding box for this agent.
+
+        The bounding box is either the static position or the
+        bounding box of the trajectory.
+
+        :returns: the bounding box or None'''
+        if self.isMoving():
+            return self._trajectory.boundingBox()
+        else:
+            return super().boundingBox()
+
+
+    def setTrajectory(self, t: Trajectory):
+        '''Set the trajectory being followed by the agent.
+
+        :param t: the trajectory'''
+        super().setPosition(None)
+        self._trajectory = t
+        self.playground().setAgentBoundingBox(self, t.boundingBox())
+
+
     def isMoving(self, fatal = False) -> bool:
         '''Test whether the agent moving.
 
@@ -248,7 +286,7 @@ class MobileAgent(Agent):
         now = self.now()
         t = Trajectory(self.position(), now, end, now + dt)
         super().setPosition(None)
-        self._trajectory = t
+        self.setTrajectory(t)
 
 
     def moveAlong(self, t: Trajectory):
@@ -266,11 +304,11 @@ class MobileAgent(Agent):
 
         # check start point matches agent
         (sp, _) = t.endpoints()
-        if sp != self.position():
+        if self.isPositioned() and sp != self.position():
             raise ValueError('Trajectory starts somewhere else than the agent')
         (st, _) = t.interval()
         if st != self.now():
             raise ValueError('Trajectory starts at another time')
 
-        self._trajectory = t
         super().setPosition(None)
+        self.setTrajectory(t)

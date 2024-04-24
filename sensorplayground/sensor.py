@@ -21,7 +21,17 @@
 import numpy
 from numpy.linalg import norm
 from typing import List, Union, Any, Iterable, cast
-from sensorplayground import Position, distanceBetween, BoundingBox, Agent, TargetCount
+import sensorplayground
+from sensorplayground import Position, distanceBetween, BoundingBox, TargetCount
+
+# There is a circular import between Agent and SensorPlayground at the
+# typing level (but not at the execution level), when providing types
+# for setUp(). To deal with this we only import SensorPlayground in order
+# to type-check Agent, and not for execution. (See
+# https://www.stefaanlippens.net/circular-imports-type-hints-python.html)
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from sensorplayground import Agent
 
 
 class Sensor:
@@ -34,13 +44,15 @@ class Sensor:
     UNIQUE = 0                    #: Source of unique sensor ids.
 
 
-    def __init__(self, a: Agent= None, id: Any = None):
+    def __init__(self, a: 'Agent'= None, id: Any = None):
         if id is None:
             id = f'sensor{Sensor.UNIQUE}'
             id = Sensor.UNIQUE
             Sensor.UNIQUE += 1
         self._id: Any = id
         self._agent: Agent = a
+        if a is not None:
+            a.addSensor(self)
 
 
     # ---------- Access ----------
@@ -52,14 +64,14 @@ class Sensor:
         return self._id
 
 
-    def agent(self) -> Agent:
+    def agent(self) -> 'Agent':
         '''Return the agent to which this sensor is attached.
 
         :returns: the agent'''
         return self._agent
 
 
-    def setAgent(self, a: Agent):
+    def setAgent(self, a: 'Agent'):
         '''Associate the sensor with the given agent.
 
         :param a: the agent'''
@@ -77,7 +89,7 @@ class Sensor:
         return self.agent().position()
 
 
-    def distanceTo(self, a: Agent) -> float:
+    def distanceTo(self, a: 'Agent') -> float:
         '''The distance to another agent is its distance from this
         sensor's agent.
 
@@ -133,8 +145,8 @@ class SimpleTargetCountSensor(Sensor, TargetCount):
     :param id: (optional) sensor identifier'''
 
 
-    def __init__(self, a: Agent = None, r: float = 1.0, id: Any = None):
-        super().__init__(id, id=a)
+    def __init__(self, a: 'Agent' = None, r: float = 1.0, id: Any = None):
+        super().__init__(a, id=id)
         self._detectionRadius = r
         self._targets = 0
 
@@ -165,7 +177,7 @@ class SimpleTargetCountSensor(Sensor, TargetCount):
         return self._targets
 
 
-    def detectsTarget(self, t: Agent) -> bool:
+    def detectsTarget(self, t: 'Agent') -> bool:
         '''Always True (targets in range are always detected.
 
         :param t: the target
@@ -186,15 +198,17 @@ class SimpleTargetCountSensor(Sensor, TargetCount):
 
         :param t: simulation time (ignored)'''
         r = self.detectionRadius()
-        p = self.position()
 
         # retrieve all potentially-detected targets
-        bb = self.getBoundingBox()
-        possible = self.playground().allWithinBoundingBox(bb, cls=Agent)
+        possible = self.playground().allWithinFieldOfView(self)
         targets = [t for t in possible if self.distanceTo(t) < r]
+        print(self)
+        print(targets)
+        print(f'{len(targets)} targets observed')
 
         # determine which targets are detected
         detected = [t for t in targets if self.detectsTarget(t)]
+        print(f'{len(detected)} targets detected')
 
         # record the detected targets
         self._targets = len(detected)

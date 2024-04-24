@@ -19,7 +19,18 @@
 # along with this software. If not, see <http://www.gnu.org/licenses/gpl.html>.
 
 from typing import Iterable
-from sensorplayground import Position, Direction, Agent
+from sensorplayground import Position, Direction
+
+
+# There is a circular import between Agent and SensorPlayground at the
+# typing level (but not at the execution level), when providing types
+# for setUp(). To deal with this we only import SensorPlayground in order
+# to type-check Agent, and not for execution. (See
+# https://www.stefaanlippens.net/circular-imports-type-hints-python.html)
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from sensorplayground import Agent
+
 
 
 # ---------- Abstract modalities ----------
@@ -46,7 +57,7 @@ class Targetting(Modality):
 
     # ---------- Highlevel API ----------
 
-    def detectsTarget(self, t: Agent) -> bool:
+    def detectsTarget(self, t: 'Agent') -> bool:
         '''Test whether a target is detected.
 
         By default a target marked as detectable by :meth:`canDetectTarget`

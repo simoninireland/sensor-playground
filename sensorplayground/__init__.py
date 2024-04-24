@@ -23,9 +23,9 @@ from .utils import zipboth
 
 # Agents, targets, and sensors
 from .position import Position, vectorPosition, distanceBetween, Direction, BoundingBox, Trajectory
-from .agent import Agent, MobileAgent
 from .modalities import Modality, Targetting, TargetCount, TargetDistance, TargetDirection
 from .sensor import Sensor, SimpleTargetCountSensor
+from .agent import Agent, MobileAgent
 
 # Playgrounds
 from .playground import SensorPlayground
