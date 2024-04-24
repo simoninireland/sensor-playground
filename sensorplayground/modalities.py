@@ -46,10 +46,10 @@ class Modality:
 
 
 class Targetting(Modality):
-    '''A modality concerned with detecting and tracking tagrets.
+    '''A modality concerned with detecting and tracking targets.
 
     A "target" is simply an object of interest within the sensor's
-    field of attention. Differenmt sub-modalities provide counting,
+    field of attention. Different sub-modalities provide counting,
     distance, and direction measurement.
 
     '''
@@ -120,3 +120,17 @@ class TargetDirection(Targetting):
         :param ts: the targets
         :returns: the directions'''
         raise NotImplementedError('directionTo')
+
+
+class TargetTrigger(Targetting):
+    '''A target modality that is triggered by target action.
+
+    This modality defines a trigger that is called by some action of
+    the targets in its field of view.
+    '''
+
+    def triggeredBy(self, a: 'Agent'):
+        '''Perform the tigger action.
+
+        :param a: the target'''
+        raise NotImplementedError('trigger')

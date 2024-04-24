@@ -20,9 +20,9 @@
 
 import numpy
 from numpy.linalg import norm
-from typing import List, Union, Any, Iterable, cast
+from typing import List, Union, Any, Iterable,Type, cast
 import sensorplayground
-from sensorplayground import Position, distanceBetween, BoundingBox, TargetCount
+from sensorplayground import Position, distanceBetween, BoundingBox, TargetCount, TargetTrigger
 
 # There is a circular import between Agent and SensorPlayground at the
 # typing level (but not at the execution level), when providing types
@@ -130,25 +130,30 @@ class Sensor:
 
 # ---------- Simple sensors for debugging ----------
 
-class SimpleTargetCountSensor(Sensor, TargetCount):
-
+class SimpleTargetCountSensor(Sensor, TargetCount, TargetTrigger):
     '''A sensor with a circular or spherical sensing field defined
-    by its radius that detects targets within this field. The
-    sensor doesn't move and so can't be re-positioned or assigned
-    a motion.
+    by its radius that detects targets within this field.
 
     For topological reasons the sensor field is an open region, and
     so includes all points at a distance strictly less than the radius.
 
+    The sensor can be set to detect only targets of a particular class.
+    In particular, this means it can avoid detecting targets whose
+    existence is just as a position for sensors. In general, in reality,
+    this can be harder than it sounds.
+
     :param a: the agent
     :param r: the sensing field radius (defaults to 1.0)
+    :param cls: (optional) the class of targets we detect (defaults to all)
     :param id: (optional) sensor identifier'''
 
 
-    def __init__(self, a: 'Agent' = None, r: float = 1.0, id: Any = None):
+    def __init__(self, a: 'Agent' = None, r: float = 1.0,
+                 cls: Type['Agent'] = None, id: Any = None):
         super().__init__(a, id=id)
         self._detectionRadius = r
         self._targets = 0
+        self._cls = cls
 
 
     def detectionRadius(self) -> float:
@@ -156,7 +161,7 @@ class SimpleTargetCountSensor(Sensor, TargetCount):
 
 
     def fieldOfView(self) -> BoundingBox:
-        '''Return the sensor's bounding box based on its posiotion
+        '''Return the sensor's bounding box based on its position
         and detection radius.
 
         :returns: the bounding box'''
@@ -169,6 +174,8 @@ class SimpleTargetCountSensor(Sensor, TargetCount):
             tr[i] = p[i] + r
         return (bl, tr)
 
+
+    # ---------- Modalities ----------
 
     def numberOfTargets(self) -> int:
         '''Return the number of targets the sensor last counted.
@@ -183,6 +190,13 @@ class SimpleTargetCountSensor(Sensor, TargetCount):
         :param t: the target
         :returns: True'''
         return True
+
+
+    def triggeredBy(self, a: 'Agent'):
+        '''Do nothing on trigger by default.
+
+        :param a: the target that triggers the sensor'''
+        pass
 
 
     # ---------- Events ----------
@@ -200,7 +214,7 @@ class SimpleTargetCountSensor(Sensor, TargetCount):
         r = self.detectionRadius()
 
         # retrieve all potentially-detected targets
-        possible = self.playground().allWithinFieldOfView(self)
+        possible = self.playground().allAgentsWithinFieldOfView(self, cls=self._cls)
         targets = [t for t in possible if self.distanceTo(t) < r]
         print(self)
         print(targets)
