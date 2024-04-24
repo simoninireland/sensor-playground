@@ -36,6 +36,41 @@ class TargetCountingTraceSensor(SimpleTargetCountSensor):
         self._trace.append((t, self.numberOfTargets()))
 
 
+class Target(MobileAgent):
+    '''An agent that's distinct from an agent with a sensor.'''
+    pass
+
+
+class Tweeter(Target):
+    '''A target that "tweets" and triggers sensors for which it is in
+    view.'''
+
+    def tweet(self, t):
+        '''Cause an observable tweet.
+
+        :param t: the simulation time (ignored)'''
+        print('tweet')
+        possibleSensors = self.playground().allSensorsObserving(self, cls=Acoustic)
+        print(possibleSensors)
+        for s in possibleSensors:
+            s.triggeredBy(self)
+
+
+class Acoustic(SimpleTargetCountSensor):
+    '''A triggerable sensor that counts tweets.'''
+
+    def __init__(self, a = None, r = 1.0, id = None):
+        super().__init__(a, r, id)
+        self._tweets = 0
+
+
+    def triggeredBy(self, a):
+        '''Increment the count.
+
+        :param a: the target that triggered the sensor'''
+        self._tweets += 1
+
+
 class TestScenarios(unittest.TestCase):
 
     def setUp(self):
@@ -164,7 +199,8 @@ class TestScenarios(unittest.TestCase):
         m.setPosition([-0.65, 1.0])
         m.moveTo([0.1, 1.0], dt=0.75)
 
-        # add sensing events for t=0.0, 0.5, 0.75, 1.0
+        # add sensing events for t=0.0, 0.5, 0.70, 1.0
+        # (0.70 is chosen so both targets are in view)
         for t in [0.0, 0.5, 0.70, 1.0]:
             self._playground.postEvent(s, t, s.sample)
 
@@ -173,3 +209,103 @@ class TestScenarios(unittest.TestCase):
 
         # check detection
         self.assertCountEqual(s._trace, [(0.0, 0), (0.5, 1), (0.70, 2), (1.0, 1)])
+
+
+    def testStaticTargetsDistinct(self):
+        '''Test a target counting scenario with non-overlapping fields of view.'''
+
+        # sensors with overlap
+        sPlace1 = Agent()
+        sPlace2 = Agent()
+        sPlace3 = Agent()
+        for p in [sPlace1, sPlace2, sPlace3]:
+            self._playground.addAgent(p)
+        s1 = SimpleTargetCountSensor(sPlace1, r=1.0, cls=Target)
+        s2 = SimpleTargetCountSensor(sPlace2, r=1.0, cls=Target)
+        s3 = SimpleTargetCountSensor(sPlace3, r=1.0, cls=Target)
+        sPlace1.setPosition([0.0, 0.0])
+        sPlace2.setPosition([-2.25, 0.0])
+        sPlace3.setPosition([2.25, 0.0])
+
+        # targets in the views of s1 and s3
+        m1 = Target()
+        self._playground.addAgent(m1)
+        m1.setPosition([0.6, 0.1])
+        m2 = Target()
+        self._playground.addAgent(m2)
+        m2.setPosition([1.5, 0.1])
+
+        # sample at all three sensors
+        for s in [s1, s2, s3]:
+            self._playground.postEvent(s, 1.0, s.sample)
+
+        # run the simulation
+        self._playground.run()
+
+        # check the counts
+        self.assertEqual(s1.numberOfTargets(), 1)
+        self.assertEqual(s2.numberOfTargets(), 0)
+        self.assertEqual(s3.numberOfTargets(), 1)
+
+
+    def testStaticTargetsOverlapping(self):
+        '''Test a target counting scenario with overlapping fields of view.'''
+
+        # sensors with overlap
+        sPlace1 = Agent()
+        sPlace2 = Agent()
+        sPlace3 = Agent()
+        for p in [sPlace1, sPlace2, sPlace3]:
+            self._playground.addAgent(p)
+        s1 = SimpleTargetCountSensor(sPlace1, r=1.0, cls=Target)
+        s2 = SimpleTargetCountSensor(sPlace2, r=1.0, cls=Target)
+        s3 = SimpleTargetCountSensor(sPlace3, r=1.0, cls=Target)
+        sPlace1.setPosition([0.0, 0.0])
+        sPlace2.setPosition([-0.25, 0.0])
+        sPlace3.setPosition([1.25, 0.0])
+
+        # targets in the overlap and in view of s3 only
+        m1 = Target()
+        self._playground.addAgent(m1)
+        m1.setPosition([0.6, 0.1])
+        m2 = Target()
+        self._playground.addAgent(m2)
+        m2.setPosition([1.5, 0.1])
+
+        # sample at all three sensors
+        for s in [s1, s2, s3]:
+            self._playground.postEvent(s, 1.0, s.sample)
+
+        # run the simulation
+        self._playground.run()
+
+        # check the counts
+        self.assertEqual(s1.numberOfTargets(), 1)
+        self.assertEqual(s2.numberOfTargets(), 1)
+        self.assertEqual(s3.numberOfTargets(), 2)
+
+
+    # ---------- Triggered sensors ----------
+
+    def testHearSingleTweet(self):
+        '''Test we can hear a single tweet.'''
+
+        # sensor
+        sPlace = Agent()
+        self._playground.addAgent(sPlace)
+        s = Acoustic(sPlace, r=1.0)
+        sPlace.setPosition([0.0,0.0])
+
+        # target that tweets
+        t = Tweeter()
+        self._playground.addAgent(t)
+        t.setPosition([0.5, 0.5])
+
+        # set a tweet event
+        self._playground.postEvent(t, 1.0, t.tweet)
+
+        # run the simulation
+        self._playground.run()
+
+        # check the counts
+        self.assertEqual(s._tweets, 1)
