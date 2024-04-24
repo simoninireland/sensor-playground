@@ -40,7 +40,7 @@ class Agent:
     In the general case agents can move. Instances of this class can
     be positioned (and repositioned), but cannot engage in motion.
     They can also have behaviour that is triggered within a
-    simulation.
+    simulation by defining events that get posted.
 
     :param id: (optional) the agent's id
 
@@ -96,7 +96,7 @@ class Agent:
         self._sensors.add(s)
         self._sensorIds[s.id()] = s
 
-        # set the saensor's agent
+        # set the sensor's agent
         s.setAgent(self)
 
 
@@ -112,6 +112,13 @@ class Agent:
         # remove the agent
         self._sensors.remove(s)
         del self._sensorIds[id]
+
+
+    def sensors(self) -> Iterable[Sensor]:
+        '''Return the sensors attached to this agent.
+
+        :returns: the sensors'''
+        return self._sensors
 
 
     # ---------- Position ----------
@@ -172,23 +179,21 @@ class Agent:
 
     def setUp(self, pg: 'SensorPlayground'):
         '''Set up the agent within a simulation. This will typically
-        involve the agent posting an event. Sub-classes whoulf call
+        involve the agent posting an event. Sub-classes should call
         this method before performing their own actions.
 
         :param pg: the playground'''
         self._playground = pg
 
 
-
-# General agents
-
 class MobileAgent(Agent):
-    '''An agent in a simulation.
+    '''A mobile agent in a simulation.
 
-    Agents have position and can be moved. Their position is sensitive to the motions
-    they engage in.
+    Mobile agents can have a static position and can also be moved.
+    Their position is sensitive to the motions they engage in.
 
     :param id: the agent's identifier (defaults to a unique number)
+
     '''
 
     def __init__(self, id: Any = None):
