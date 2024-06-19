@@ -23,18 +23,33 @@ from numpy.linalg import norm
 from typing import List, Union, Tuple, cast
 
 
+# ---------- Positions and helper functions ----------
+
 # Positions in 2- or 3-space
 Position = Union[List[float], numpy.ndarray]
 
+
 # Directions
-Direction = List[float]
+Direction = float
 
 
-# Bounding boxes for trajectories
-BoundingBox = Tuple[Position, Position]
+def haveSameDimensions(p1: Position, p2: Position, fatal: bool = True):
+    '''Check that the points have the same dimensions.
+    If fatal is True(the defaulrt), raise a ValueError.
+
+    :param p1: the first point
+    :param p2: the second point:
+    :param fatal: (optional) raise exception on failure (defaults to True)
+    :returns: True if the points have the same dimension'''
+    if len(p1) == len(p2):
+        return True
+    else:
+        if fatal:
+            raise ValueError(f"Points {p1} and {p2} have different dimensions")
+        else:
+            return False
 
 
-# Distance calculations
 def vectorPosition(p: Position) -> numpy.ndarray:
     '''Ensure p is a numpy vector.
 
@@ -55,7 +70,131 @@ def distanceBetween(p: Position, q: Position) -> float:
     return float(norm(vectorPosition(p) - vectorPosition(q)))
 
 
-# Trajectories
+# ---------- Bounding boxes ----------
+
+class BoundingBox:
+    '''A pessimistic estimate of the area or volume covered by something.
+
+    A bounding box may have zero extent in all directions, and
+    therefore represent a point; it can also have zero extent in one or
+    more dimensions, for example to support motion along an axis.
+
+    A bounding box is an open area: it doesn't include its boundary. However,
+    it it's just a point, it does contain that point.
+
+    :param c1: one corner position
+    :param c2: (optional) the other corner position'''
+
+    def __init__(self, c1: Position, c2: Position = None):
+        # if we have two corners, they have to have the same dimensions
+        if c2 is not None:
+            haveSameDimensions(c1, c2)
+
+        if c2 is None or c1 == c2:
+            # if the second corner is missing or the same as the first,
+            # the box is a point
+            self._topRight = c1
+            self._bottomLeft = c1
+        else:
+            # compute the bounding box from the two corners
+            self._topRight: Position = []
+            self._bottomLeft: Position = []
+            for d in range(len(c1)):
+                self._topRight.append(max(c1[d], c2[d]))
+                self._bottomLeft.append(min(c1[d], c2[d]))
+
+
+    # ---------- Access ----------
+
+    def dimension(self) -> int:
+        '''Returns the dimension of the bounding box.
+
+        :returns the number of dimensions'''
+        return len(self._topRight)
+
+
+    def corners(self) -> Tuple[Position, Position]:
+        '''Return the two corners of the bounding box.
+
+        :returns: a pair of corners'''
+        return (self._bottomLeft, self._topRight)
+
+
+    def isPoint(self) -> bool:
+        '''Test if the bounding box is just a point.
+
+        :returns: True if the bounding box contains only a single point'''
+        return (self._bottomLeft == self._topRight)
+
+
+    # ---------- Tests ----------
+
+    def contains(self, p: Position) -> bool:
+        '''True if the given point is within the bounding box.
+
+        The bounding box doesn't contain its boundary *unless* it
+        is either a point (in  which case this is a test for equality
+        weith that point) *or* it has zero depth in some dimension
+        (indicating motion along an axis).
+
+        It's possible this definition will change in future to
+        include the box's boundary as well as its interior
+        (describing a closed region instead of an open one, in
+        other words).
+
+        :param p: the point to test
+        :returns: True if the point is within the bounding box'''
+        haveSameDimensions(self._topRight, p)
+
+        for d in range(len(p)):
+            if self._topRight[d] == self._bottomLeft[d]:
+                # zero depth in this dimension
+                if p[d] != self._topRight[d]:
+                    return False
+            else:
+                if p[d] >= self._topRight[d] or p[d] <= self._bottomLeft[d]:
+                    return False
+        return True
+
+
+    def __contains__(self, p: Position) ->bool:
+        '''Test if the point is within the bounding box.
+
+        This is equivalent for :meth:`contains`.
+
+        :param p: the point to test
+        :returns: True if the point is within the bounding box'''
+        return self.contains(p)
+
+
+    # ---------- Operations ----------
+
+    def union(self, bb: 'BoundingBox') -> 'BoundingBox':
+        '''Return a new bounding box that is the union of
+        the receiver and the given box.
+
+        The two boxes must have the same dimension.
+
+        :param bb: the other box
+        :returns: the union of the two boxes'''
+        d = self.dimension()
+        bd = bb.dimension()
+        if d != bd:
+            raise ValueError(f"Bounding boxes have different dimensions ({d} and {bd})")
+
+        # compute the bounding box from the two corners
+        tr: Position = []
+        bl: Position = []
+        (bl1, tr1) = self.corners()
+        (bl2, tr2) = bb.corners()
+        for d in range(len(tr1)):
+            tr.append(max(tr1[d], tr2[d]))
+            bl.append(min(bl1[d], bl2[d]))
+        return BoundingBox(bl, tr)
+
+
+# ---------- Trajectories ----------
+
 class Trajectory:
     '''A motion in space.
 
@@ -97,7 +236,7 @@ class Trajectory:
     # ---------- Access ----------
 
     def interval(self) -> Tuple[float, float]:
-        '''Return trhe interval between start and end times.
+        '''Return the interval between start and end times.
 
         :returns: the pair of start and end times'''
         return (self._startt, self._endt)
@@ -139,19 +278,18 @@ class Trajectory:
         :param p: the position
         :param fatal: (optional) raise an exception if outside (defaults to False)
         :returns: True if o lies within the bounding box'''
-        (bl, tr) = self.boundingBox()
-        for i in range(len(bl)):
-            if p[i] < bl[i] or p[i] > tr[i]:
-                if fatal:
-                    raise ValueError('Point lies outside bounding box')
-                else:
-                    return False
+        bb = self.boundingBox()
+        if p not in bb:
+            if fatal:
+                raise ValueError('Point lies outside bounding box')
+            else:
+                return False
         return True
 
 
     # ---------- Interpolation ----------
 
-    def position(self, t: float) -> Position:
+    def positionAt(self, t: float) -> Position:
         '''Return the interpolated position along the trajectory at the given time.
 
         The default is constant linear motion, which may be overridden
@@ -172,6 +310,15 @@ class Trajectory:
         return p
 
 
+    def advanceTo(self, t: float):
+        '''Move along the trajetory to the point indicated by
+        the given time.
+
+        :param t: the new time'''
+        self._startp = self.positionAt(t)
+        self._startt = t
+
+
     def boundingBox(self) -> BoundingBox:
         '''Return the bounding box for the trajectory.
 
@@ -179,14 +326,29 @@ class Trajectory:
         may be overridden by sub-classses.
 
         :returns: the bounding box'''
+        return BoundingBox(self._startp, self._endp)
 
-        # check that the trajectory is grounded at a start point
-        if self._startp is None:
-            raise ValueError('Trajectory does not have a starting point')
 
-        bl = [0] * len(self._startp)
-        tr = [0] * len(self._startp)
-        for i in range(len(self._startp)):
-            bl[i] = min(self._startp[i], self._endp[i])
-            tr[i] = max(self._startp[i], self._endp[i])
-        return (bl, tr)
+    def entersLeavesAt(self, bb: BoundingBox) -> Tuple[float, float]:
+        '''Return the time at which the agent following this trajectory
+        will enter and leave the given bounding box.
+
+        For the time being we assume this is the first time for both.
+
+        :param bb: the bounding box
+        :returns: the time'''
+
+        # compute all the times
+        dt = (self._endt - self._startt)
+        cs = bb.corners()
+        bd = len(cs[0])
+        ts = []
+        for d in range(bd):
+            for i in range(len(cs)):
+                t = (cs[0][i] - self._startp[d]) / dt
+                ts.append(t)
+
+        # entry time is the smallest positive time, exit is the next largest
+        sts = [t for t in ts if t >= 0]
+        sts.sort()
+        return (sts[0], sts[1])
