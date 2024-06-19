@@ -20,7 +20,7 @@
 
 import numpy
 from typing import List, Union, Any, Dict, Iterable, Set, cast
-from sensorplayground import Position, BoundingBox, distanceBetween, Direction, Trajectory, Sensor
+from sensorplayground import Position, BoundingBox, distanceBetween, Trajectory, Sensor
 
 # There is a circular import between Agent and SensorPlayground at the
 # typing level (but not at the execution level), when providing types
@@ -52,11 +52,15 @@ class Agent:
 
     def __init__(self, id: Any = None):
         if id is None:
-            id = f'agent{Agent.UNIQUE}'
+            id = f'agent-{Agent.UNIQUE}'
             Agent.UNIQUE += 1
         self._id: Any = id
         self._playground: 'SensorPlayground' = None
+
+        # positional state
         self._position: Position = None
+
+        # attached sensors
         self._sensors: Set['Sensor'] = set()
         self._sensorIds: Dict[Any, Sensor] = dict()
 
@@ -130,15 +134,28 @@ class Agent:
         return self._position
 
 
+    def isMoving(self) -> bool:
+        '''test if the agent is moving. This is always False for "normal" agents.
+
+        :returnsd: True if the agent is moving'''
+        return False
+
+
     def boundingBox(self) -> BoundingBox:
         '''Return the bounding box for this agent.
 
-        By default the bounding box is the static position, or None
-        if the agent is unpositioned.
+        By default the bounding box of an agent is the union of the
+        fields of view of all attached sensors.
 
         :returns: the bounding box or None'''
         if self.isPositioned():
-            return (self._position, self._position)
+            bb = BoundingBox(self._position)
+            for s in self.sensors():
+                if bb is None:
+                    bb = s.fieldOfView()
+                else:
+                    bb = bb.union(s.fieldOfView())
+            return bb
         else:
             return None
 
@@ -155,9 +172,9 @@ class Agent:
 
 
     def isPositioned(self, fatal = False)-> bool:
-        '''Test whether the agent is statically positioned, and therefore not moving.
+        '''Test whether the agent has a position.
 
-        :param fatal: (optional) if True, raise an exception is agent is not position (defaults to False)'''
+        :param fatal: (optional) if True, raise an exception is agent has no position (defaults to False)'''
         if self._position is not None:
             return True
         else:
@@ -210,59 +227,44 @@ class MobileAgent(Agent):
         return self._trajectory
 
 
-    def position(self) -> Position:
-        '''Returns the agent's position. This will be the static position if
-        the agent has been explicitly positioned, and an interpolated trajectory
-        if the agent is moving.
+    def isPositioned(self) -> bool:
+        '''A moving agenrt is positioned if it has a position or a trajetory.
 
-        If the current simulation time is after the end of any motion, the
-        agent is statically positioned at the endpoint.
+        :returns: True if the agent has a position'''
+        return self._position is not None or self._trajectory is not None
+
+
+    def isMoving(self) -> bool:
+        '''Test whether the agent is moving.
+
+        An agent is moving if it doesn't have a static positin but
+        does have a trajectory.
+
+        :returns: True if theagent is moving'''
+        return self._trajectory is not None
+
+
+    def position(self) -> Position:
+        '''Return the agent's position. This is equivalent to calling
+        :math:`positionAt` with the time returned by :meth:`now`.
 
         :returns: the agent's position'''
         if self.isMoving():
-            # check whether we've reached the end of the motion
-            (_, et) = self._trajectory.interval()
-            if et <= self.now():
-                # statically position at the end of the motion
-                (_, ep) = self._trajectory.endpoints()
-                super().setPosition(ep)
-                self._trajectory = None
-            else:
-                # still moving, interpolate the position
-                return self._trajectory.position(self.now())
-
-        return super().position()
-
-
-    def setPosition(self, p: Position):
-        '''Set the agent's static position. An agent so positioned
-        cannot have a trajectory, and any it does have is cleared.
-
-        :param p: the position'''
-        super().setPosition(p)
-        self._trajectory = None
-
-
-    def boundingBox(self) -> BoundingBox:
-        '''Return the bounding box for this agent.
-
-        The bounding box is either the static position or the
-        bounding box of the trajectory.
-
-        :returns: the bounding box or None'''
-        if self.isMoving():
-            return self._trajectory.boundingBox()
+            return self._trajectory.positionAt(self.now())
         else:
-            return super().boundingBox()
+            return super().position()
 
 
-    def setTrajectory(self, t: Trajectory):
-        '''Set the trajectory being followed by the agent.
+    def setTrajectory(self, j: Trajectory):
+        '''Set the trajectory being followed by the agent. This
+        posts :meth:`startMotion` and :meth:`endMotion` events
+        for the trajectory's interval ends.
 
-        :param t: the trajectory'''
-        super().setPosition(None)
-        self._trajectory = t
-        self.playground().setAgentBoundingBox(self, t.boundingBox())
+        :param j: the trajectory'''
+        self._trajectory = j
+        (st, et) = j.interval()
+        self.playground().postEvent(st, self, s.startMotion)
+        self.playground().postEvent(et, self, s.endMotion)
 
 
     def isMoving(self, fatal = False) -> bool:
@@ -290,30 +292,37 @@ class MobileAgent(Agent):
         :param dt: the interval for the motion'''
         now = self.now()
         t = Trajectory(self.position(), now, end, now + dt)
-        super().setPosition(None)
         self.setTrajectory(t)
 
 
-    def moveAlong(self, t: Trajectory):
-        '''Move the agent along the given trajectory.
+    # ---------- Events ----------
 
-        The trajectory's start point and time must match the agent's current
-        position and the current simulation time. If the agent is moving,
-        its position will be interpolated.
+    def startMotion(self):
+        '''Event called when the agent starts moving. This is typically
+        posted in reponse to setting the trajectory.'''
 
-        The main use of this method is to use a specific trajectory with
-        specific motion interpolation. For linear interpolation, use
-        :meth:`moveTo`.
+        # set the trajector's bounding box
+        j = self._trajectory
+        jb = j.boundingBox()
+        self.playground().setAgentBoundingBox(self, jb)
 
-        :param t: the trajectory'''
+        # compute intersections with other bounding boxes
+        intersecting = self.plaground().allBoundingBoxesIntersecting(jb)
 
-        # check start point matches agent
-        (sp, _) = t.endpoints()
-        if self.isPositioned() and sp != self.position():
-            raise ValueError('Trajectory starts somewhere else than the agent')
-        (st, _) = t.interval()
-        if st != self.now():
-            raise ValueError('Trajectory starts at another time')
+        # post enter events for every entry and exit
+        for a in intersecting:
+            ab = a.getBoundingBox()
 
-        super().setPosition(None)
-        self.setTrajectory(t)
+            # entry
+            t = j.entersAt(ab)
+            self.playground().postEvent(t, a, a.enters)
+
+            # exit
+            t = j.exitsAt(ab)
+            self.playground().postEvent(t, a, a.leaves)
+
+
+    def endMotion(self):
+        '''Event called when the agent starts moving. This is typically
+        posted in reponse to setting the trajectory.'''
+        self.playground().removeAgentBoundingBox(self)
