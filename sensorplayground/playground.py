@@ -32,13 +32,15 @@ Event = Tuple[float, int, Union[Sensor, Agent], EventFunction]
 
 class SensorPlayground:
     '''A field of sensors, targets, and other elements, coupled with a
-    discrete-event simulator.
+    simulation loop.
+
+    Simulation times are a sequence of integers.
 
     :param d: (optional) the dimensions of the playground (2 or 3) (defaults to 2)
     '''
 
 
-    MAXIMUM_TIME = 10000    #: Default maximum simulation time.
+    MAXIMUM_TIME = 10000.0   #: Default maximum simulation time.
 
 
     def __init__(self, d: int = 2):
@@ -56,7 +58,7 @@ class SensorPlayground:
         self._boundingBoxes: Dict[int, BoundingBox] = dict()
 
         # simulation
-        self._simulationTime: float = 0
+        self._simulationTime: float = 0.0
         self._maximumSimulationTime: float = SensorPlayground.MAXIMUM_TIME
         self._events: List[Event] = []
         self._eventId: int = 0
@@ -88,9 +90,6 @@ class SensorPlayground:
         self._agents.remove(a)
         del self._agentIds[id]
 
-        # remove associated events (mark as associated with no agent)
-        self._events = [(t, id, (None if eva == a else eva), ef) for (t, id, eva, ef) in self._events]
-
 
     def getAgent(self, id: Any) -> Agent:
         '''Retrieve the agent with the given id.
@@ -113,7 +112,6 @@ class SensorPlayground:
 
     # There is no __setitem__() as it sits awkwardly with the use of agents in addAgent()
 
-
     def __getitem__(self, id: Any) -> Agent:
         '''Get an agent by id.
 
@@ -130,6 +128,13 @@ class SensorPlayground:
         :param id: the agent id
         :returns : True if the playground contains this agent'''
         return id in self._agentIds
+
+
+    def __del__(self, aid: Union[Agent, Any]):
+        '''Delete an agent. This is equivalent to :meth:`removeAgent`.
+
+        :param aid: the agent or agent id'''
+        self.removeAgent(aid)
 
 
     # ---------- Location functions ----------
@@ -160,6 +165,15 @@ class SensorPlayground:
             self._indices[i] = sa
         return i
 
+    def _rtreeBoundingBox(self, bb: BoundingBox) -> List[float]:
+        '''Turn a bounding box into a list of or-ordinates
+        as required by rtree.
+
+        :param bb: the bounding box:
+        :returns: the list of edge co-ordinates'''
+        (bl, tr) = bb.corners()
+        return list(bl) + list(tr)
+
 
     def _getAgent(self, i: int) -> Union[Sensor, Agent]:
         '''Return the agent associated with the given index.
@@ -171,15 +185,15 @@ class SensorPlayground:
         return self._indices[i]
 
 
-    def setAgentBoundingBox(self, sa: Union[Sensor, Agent], bb: BoundingBox):
+    def setAgentBoundingBox(self, a: Agent, bb: BoundingBox):
         '''Set the bounding box for an agent. This is used to
         compute the effects of events.
 
         :param a: the agent
         :param bb: the bounding box'''
-        i = self._getIndex(sa)
+        i = self._getIndex(a)
         self._boundingBoxes[i] = bb
-        self._boxes.insert(i, tuple(bb[0] + bb[1]))
+        self._boxes.insert(i, self._rtreeBoundingBox(bb))
 
 
     def removeAgentBoundingBox(self, sa: Union[Sensor, Agent]):
@@ -189,13 +203,15 @@ class SensorPlayground:
         i = self._getIndex(sa)
         if i in self._boundingBoxes:
             bb = self._boundingBoxes[i]
-            self._boxes.delete(i, tuple(bb[0] + bb[1]))
+            self._boxes.delete(i, self._rtreeBoundingBox(bb))
             del self._boundingBoxes[i]
 
 
     # ---------- Search functions ----------
 
-    def allAgentsWithinFieldOfView(self, s: Sensor, cls: Type[Agent] = None) -> Iterable[Agent]:
+    def allAgentsWithinFieldOfView(self,
+                                   s: Sensor,
+                                   cls: Type[Agent] = None) -> Iterable[Agent]:
         '''Return all the agents that are potentially observable by a given
         sensor.
 
@@ -212,21 +228,34 @@ class SensorPlayground:
 
         # find all possibly observed agents
         fov = s.fieldOfView()
-        coords = fov[0] + fov[1]
-        possibles = [self._getAgent(i) for i in self._boxes.intersection(coords)]
+        coords = s.position()
+        observables= [self._getAgent(i) for i in self._boxes.intersection(coords)]
 
         # filter-out agents not of the correct class
         if cls is not None:
-            possibles = [a for a in possibles if isinstance(a, cls)]
+            observables = [a for a in observables if isinstance(a, cls)]
 
         # filter out observer
-        possibles = [a for a in possibles if a != s and a != s.agent()]
+        possibles = [a for a in observables if a != s and a != s.agent()]
 
         return possibles
 
 
-    def allSensorsObserving(self, a: Agent, cls: Type[Sensor] = None) -> Iterable[Sensor]:
-        '''Return all thes sensors that can observe an event on the given
+    def allBoundingBoxesIntersecting(self,
+                                     bb: BoundingBox) -> Iterable[Agent]:
+        '''Return all the agents whose bnounding boxes currently
+        intersect with the given one.
+
+        :param bb: the bounding box
+        :returns: a list of intersecting agents'''
+        intersecting = [self._getAgent(i) for i in self._boxes.intersection(self._rtreeeBoundingBox(bb))]
+        return intersecting
+
+
+    def allSensorsObserving(self,
+                            a: Agent,
+                            cls: Type[Sensor] = None) -> Iterable[Sensor]:
+        '''Return all the sensors that can observe an event on the given
         agent.
 
         The sensors won't necessarily observe the event, as this will
@@ -258,9 +287,61 @@ class SensorPlayground:
         return possibleSensors
 
 
+    # ---------- Events ----------
+
+    def _newEventId(self) -> int:
+        '''Return a new, unique, event id.
+
+        :returns: an event id'''
+        self._eventId += 1
+        return self._eventId
+
+
+    def postEvent(self, t: float, sa: Union[Sensor, Agent], f: EventFunction):
+        '''Postan event for the given time.
+
+        :param t: the event time (must be in the future)
+        :param sa: the agent or sensor that will receive the event
+        :param f: the event functionto be called'''
+        ev = [t, self._newEventId(), sa, f]
+        heappush(self._events, ev)
+
+
+    def _isDeletedEvent(self, ev: Event) -> bool:
+        '''Test if an event has been deleted. A deleted event
+        has its target set to None.
+
+        We need this because it's awkward/impossible to delete an
+        element from a heap. So we leave them there but mark them as dead.
+
+        :param ev: the event
+        :returns: True if the event has been deleted'''
+        return ev[2] is None
+
+
+    def _markEventAsDeleted(self, ev: Event):
+        '''Mark the event as deleted by resetting is target to None.
+
+        :param ev: the event'''
+        ev[2] = None
+
+
+    def nextEvent(self,) -> Event:
+        '''Pop the next event and return it.
+
+        :returns: the next event'''
+        while len(self._events) > 0:
+            ev = heappop(self._events)
+            if not self._isDeletedEvent(ev):
+                return ev
+
+        # if we get here there are no events left
+        return None
+
+
     # ---------- Discrete-event simulation ----------
 
-    def now(self) -> float:
+    def now(self) -> int:
         '''Return the current simulation time.
 
         :returns: the current simulation time'''
@@ -276,13 +357,6 @@ class SensorPlayground:
         self._simulationTime = t
 
 
-    def maximumSimulationTime(self) -> float:
-        '''Return the maximum permitted simulation time.
-
-        :returns: the maximumsimulation time'''
-        return self._maximumTime
-
-
     def setMaximumSimulationTime(self, t: float):
         '''Set the maximum permitted simulation time.
 
@@ -290,88 +364,23 @@ class SensorPlayground:
         self._maximumTime = t
 
 
-    def _newEvent(self) -> int:
-        '''Return a new, unique, event identifier.
-
-        :returns: a unique identifier'''
-        id = self._eventId
-        self._eventId += 1
-        return id
-
-
-    def postEvent(self, sa: Union[Sensor, Agent], t: float, ef: EventFunction) -> int:
-        '''Post an event for a specific time.
-
-        :param sa: the sensor or agent the event is occurs on
-        :param t: the simulation time
-        :param ef: the event function
-        :returns: an event id'''
-
-        # sanity checks
-        if t < self.now():
-            raise ValueError(f'Event posted for the past (t={t})')
-
-        # insert the event into the right place in the event queue
-        id = self._newEvent()
-        ev = [t, id, sa, ef]
-        heappush(self._events, ev)
-        return id
-
-
-    def postEventIn(self, a: Agent, dt: float, ef: EventFunction) -> int:
-        '''Post an event for a time relative to now.
-
-        :param a: the agent
-        :param dt: the interval
-        :param ef: the event function
-        :returns: an event id'''
-        return self.postEvent(a, self.now() + dt, ef)
-
-
-    def postRepeatingEvent(self, a: Agent, t: float, dt: float, ef: EventFunction) -> int:
-        '''Post an event for a time in the fiture that then
-        repoeates at a fixed interval.
-
-        :param a: the agent
-        :param t: the first event time
-        :param dt: the interval
-        :param ef: the event function'''
-
-        # event function to fire an event and then re-schedule it
-        def repeat(tc):
-            ef(tc)
-            self.postEvent(a, tc + dt, repeat)
-
-        return self.postEvent(a, t, repeat)
-
-
-    def hasEvents(self) -> bool:
-        '''True if there are events to run and the maximum
-        simulation time has not been exceeded.
-
-        :returns: True if there are events left to run'''
-        return len(self._events) > 0 and self._simulationTime < self._maximumSimulationTime
-
-
     def run(self) -> int:
         '''Run the simulation.
 
         :returns: the number of events executed'''
         n = 0
-        while self.hasEvents():
-            # extract the next event
-            (t, _, sa, ef) = heappop(self._events)
+        self._simulationTime = 0
+        while self._simulationTime < self._maximumSimulationTime:
+            ev = self.nextEvent()
+            if ev is None:
+                # no more events to handle
+                break
 
-            # skip the event if it is marked as deleted (not associated
-            # with an agent or sensor)
-            if sa is None:
-                continue
-
-            # advance the simulation time
+            # handle the event
+            # TODO: change this to access the list directly -- obscure but faster
+            (_, t, sa, f) = ev
             self.setSimulationTime(t)
-
-            # execute the event
-            ef(t)
+            f(t)
             n += 1
 
         return n

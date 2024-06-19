@@ -95,7 +95,7 @@ class TestScenarios(unittest.TestCase):
         m.moveTo([2.0, 1.5], dt=1.0)
 
         # add a sensing event for t=0.5
-        self._playground.postEvent(s, 0.5, s.sample)
+        self._playground.postEvent(0.5, s, s.sample)
 
         # run the simulation
         self._playground.run()
