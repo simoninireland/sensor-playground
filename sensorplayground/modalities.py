@@ -32,7 +32,6 @@ if TYPE_CHECKING:
     from sensorplayground import Agent
 
 
-
 # ---------- Abstract modalities ----------
 
 class Modality:
@@ -67,7 +66,7 @@ class Targetting(Modality):
 
         :param q: the target position
         :returns: True if the target is detected'''
-        raise  NotImplementedError('detectsTarget')
+        raise NotImplementedError('detectsTarget')
 
 
 
@@ -130,7 +129,7 @@ class TargetTrigger(Targetting):
     '''
 
     def triggeredBy(self, a: 'Agent'):
-        '''Perform the tigger action.
+        '''Perform the trigger action.
 
         :param a: the target'''
         raise NotImplementedError('trigger')
