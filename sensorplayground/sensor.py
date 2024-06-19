@@ -46,7 +46,7 @@ class Sensor:
 
     def __init__(self, a: 'Agent'= None, id: Any = None):
         if id is None:
-            id = f'sensor{Sensor.UNIQUE}'
+            id = f'sensor-{Sensor.UNIQUE}'
             id = Sensor.UNIQUE
             Sensor.UNIQUE += 1
         self._id: Any = id
@@ -172,7 +172,7 @@ class SimpleTargetCountSensor(Sensor, TargetCount, TargetTrigger):
         for i in range(len(p)):
             bl[i] = p[i] - r
             tr[i] = p[i] + r
-        return (bl, tr)
+        return BoundingBox(bl, tr)
 
 
     # ---------- Modalities ----------
@@ -214,8 +214,8 @@ class SimpleTargetCountSensor(Sensor, TargetCount, TargetTrigger):
         r = self.detectionRadius()
 
         # retrieve all potentially-detected targets
-        possible = self.playground().allAgentsWithinFieldOfView(self, cls=self._cls)
-        targets = [t for t in possible if self.distanceTo(t) < r]
+        observables = self.playground().allAgentsWithinFieldOfView(self, cls=self._cls)  # in bounding box
+        targets = [t for t in observables if self.distanceTo(t) < r]                     # within distance
         print(self)
         print(targets)
         print(f'{len(targets)} targets observed')
